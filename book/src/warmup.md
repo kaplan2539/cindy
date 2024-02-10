@@ -19,7 +19,7 @@ These commands are going to install a cross-compiler toolchain, the
 `sunxi-fel` tool, the `cu` terminal program, and couple of dependencies:
 
 ```
-sudo bash -c '{{#include ../setup/install_packages.sh:3:}}'
+sudo bash -c '{{#include ../../setup/install_packages.sh:3:}}'
 ```
 
 Let us add the current user to the `dialout` group in order to run the `cu`
