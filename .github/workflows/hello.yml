@@ -1,0 +1,12 @@
+name: hello-github-actions
+run-name: ${{ github.actor }} says hello
+on: [push]
+jobs:
+  find-files:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cat /etc/issue
+      - run: uname -a
+      - run: nproc
+      - run: find .
