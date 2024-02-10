@@ -31,8 +31,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install mdBook
-        run: curl -L --proto '=https' --tlsv1.2 ${MDBOOK_URL} |tar xz -O >/usr/bin/mdbook
-        run: chmod a+x /usr/bin/mdbook
+        run: |
+          curl -L --proto '=https' --tlsv1.2 ${MDBOOK_URL} |tar xz -O >/usr/bin/mdbook
+          chmod a+x /usr/bin/mdbook
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v4
