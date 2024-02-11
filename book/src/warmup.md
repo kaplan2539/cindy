@@ -1,7 +1,7 @@
 # Warmup: Boot the latest Linux LTS 
 
-In this warmup exercise were going to show that C.H.I.P is not dead: We are
-booting into the latest Linux LTS release (6.1.63 at the time of writing).
+In this warm-up exercise were going to show that C.H.I.P is not dead: We are
+booting into the latest Linux LTS release (6.1.62 at the time of writing).
 
 ## Hardware
 
@@ -80,7 +80,11 @@ Some explanation: We're calling `make` and set the target architecture to `arm`
 and select the `arm-linux-gnueabihf-` toolchain we installed before.
 
 That wasn't too bad, so now let's try to boot CHIP.
-First open a new terminal window in which we're going to run `cu`:
+First, connect the `TX` wire of your USB serial adapter to CHIP's `RX` pin and
+the `RX` wir of your USB serial adapter to CHIP's `TX` pin.
+Also connect a `GND` pin of your USB serial adapter to one of CHIP's `GND`
+pins.
+Then, open a new terminal window in which we're going to run `cu`:
 ```shell
 cu -l /dev/ttyUSB0 -s 115200
 ```
@@ -225,6 +229,9 @@ Exciting times! We've just ran the latest Linux LTS (for one second or so)!
 
 ## Busybox Rootfs
 
+The above attempt to boot into Linux failed because we did not have a root
+filesystem (rootfs). Let's build one using Busybox!
+
 Download Busybox
 ```
 wget -c -P downlad https://busybox.net/downloads/busybox-1.36.1.tar.bz2
@@ -241,7 +248,7 @@ mkdir ../rootfs
 ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- make CONFIG_PREFIX=./../rootfs install
 ```
 
-Finalize initramfs
+Finalize initramfs:
 ```
 cat > rootfs/init << EOF
 #!/bin/sh
@@ -263,7 +270,8 @@ fakeroot -- /bin/bash -c '\
 u-boot-v2023.10/tools/mkimage -A arm -O linux -T ramdisk -C gzip -d rootfs.cpio.gz rootfs.cpio.gz.uboot
 ```
 
-Now that we have rootfs we can download it to CHIP's RAM and boot into it:
+Now that we have a root file system we can download it to CHIP's RAM and boot
+into it:
 
 ```shell
 sunxi-fel -v uboot u-boot-v2023.10/u-boot-sunxi-with-spl.bin \
