@@ -4,12 +4,14 @@ authors = ["Alexander Kaplan"]
 language = "en"
 multilingual = false
 src = "src"
+
+[output.html]
+cname = "d.eadc0.de"
 default-theme = "dark"
 preferred-dark-theme = "Ayu"
 git-repository-url = "https://github.com/kaplan2539/cindy"
 edit-url-template = "https://github.com/kaplan2539/cindy/edit/<branch>/{path}"
-side-url = "https://d.eadc0.de/cindy"
-cname = "d.eadc0.de"
+site-url = "https://d.eadc0.de/cindy"
 
 [build]
 build-dir = "output"

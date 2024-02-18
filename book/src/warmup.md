@@ -18,13 +18,13 @@ The following has been tested on a `x86_64` computer running Ubuntu 22.04.
 These commands are going to install a cross-compiler toolchain, the
 `sunxi-fel` tool, the `cu` terminal program, and couple of dependencies:
 
-```
+```shell
 sudo bash -c '{{#include ../../setup/install_packages.sh:3:}}'
 ```
 
 Let us add the current user to the `dialout` group in order to run the `cu`
 without being a super-user:
-```
+```shell
 sudo adduser $USER dialout
 ```
 For the change to take effect we need to logout and login again.
@@ -72,7 +72,7 @@ There's even a default config for CHIP in `u-boot-v2023.10/configs/CHIP_defconfi
 
 Now, let's build U-Boot for CHIP:
 
-```
+```shell
 ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- make CHIP_defconfig
 ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- make -j$(nproc)
 ```
@@ -162,7 +162,7 @@ U-Boot release which is already great.
 At the time of writing, the latest Linux LTS kernel is 6.1.62, which we
 donwnload and extract by typing:
 
-```
+```shell
 wget -c https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.1.62.tar.xz
 tar xf linux-6.1.62.tar.xz
 ```
@@ -170,7 +170,7 @@ tar xf linux-6.1.62.tar.xz
 Let's try building with the `sunxi_defconfig` which can be found in
 `linux-6.1.62/arch/arm/configs`:
 
-```
+```shell
 cd linux-6.1.62
 ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- make sunxi_defconfig
 ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- make -j$(nproc) zImage
@@ -233,13 +233,13 @@ The above attempt to boot into Linux failed because we did not have a root
 filesystem (rootfs). Let's build one using Busybox!
 
 Download Busybox
-```
+```shell
 wget -c -P downlad https://busybox.net/downloads/busybox-1.36.1.tar.bz2
 tar x -C build -f download/busybox-1.36.1.tar.bz2
 ```
 
 Configure & Compile:
-```
+```shell
 cd build/busybox-1.36.1
 ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- make defconfig
 sed -e 's/# CONFIG_STATIC is not set/CONFIG_STATIC=y/' -i .config
@@ -249,7 +249,7 @@ ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- make CONFIG_PREFIX=./../rootfs insta
 ```
 
 Finalize initramfs:
-```
+```shell
 cat > rootfs/init << EOF
 #!/bin/sh
 mount -t proc none /proc
