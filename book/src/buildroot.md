@@ -106,12 +106,24 @@ make
 ```
 
 Buildroot put everything into the `output/images` sub-directory.
-To boot type:
-
+The following commands are booting into U-Boot SPL and then upload the Linux
+kernel, the device tree and the Buildroot root file system into CHIP's DRAM:
 ```shell
 cd output/images
 sunxi-fel -v -p uboot u-boot-sunxi-with-spl.bin \
                 write 0x42000000 zImage \
                 write 0x43000000 sun5i-r8-chip.dtb \
-                write 0x43400000 rootfs.cpio.uboot
+                write 0x50000000 rootfs.cpio.uboot
+```
+
+NOTE: We are uploading the root file system to address `0x50000000` now.
+If the rootfs gets bigger we might get into trouble uploading it into the
+memory region between `0x4300000000` and `0x4fffffff`.
+Read the [Sunxi Website](https://linux-sunxi.org/Initial_Ramdisk) and
+[this post](https://groups.google.com/g/linux-sunxi/c/Itt3Bko0bVA/m/Mqt5zTj1qaIJ)
+for more details.
+
+To boot, type the following in the `cu` terminal window:
+```
+=> bootz 0x42000000 0x50000000 0x43000000
 ```
