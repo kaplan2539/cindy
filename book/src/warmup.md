@@ -37,8 +37,11 @@ booting CHIP later.
 
 For now, we disconnect CHIP from everything, connect the FEL pin to a GND pin
 on CHIP and then use the USB-data cable to connect CHIP's micro USB port to a
-USB port of your computer. Then type:
+USB port of your computer.
 
+![C.H.I.P. connected in FEL mode](chip_fel_connected.png)
+
+Then type:
 ```shell
 sunxi-fel ver
 ```
