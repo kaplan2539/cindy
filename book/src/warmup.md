@@ -79,11 +79,16 @@ ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- make -j$(nproc)
 Some explanation: We're calling `make` and set the target architecture to `arm`
 and select the `arm-linux-gnueabihf-` toolchain we installed before.
 
+![USB-Serial-Adapter  connected](usb_serial_connected.png)
+
 That wasn't too bad, so now let's try to boot CHIP.
 First, connect the `TX` wire of your USB serial adapter to CHIP's `RX` pin and
 the `RX` wir of your USB serial adapter to CHIP's `TX` pin.
 Also connect a `GND` pin of your USB serial adapter to one of CHIP's `GND`
-pins.
+pins:
+
+![C.H.I.P. connected](chip_connected.png)
+
 Then, open a new terminal window in which we're going to run `cu`:
 ```shell
 cu -l /dev/ttyUSB0 -s 115200
