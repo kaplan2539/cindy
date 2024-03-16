@@ -19,7 +19,8 @@ These commands are going to install a cross-compiler toolchain, the
 `sunxi-fel` tool, the `cu` terminal program, and couple of dependencies:
 
 ```shell
-sudo bash -c '{{#include ../../setup/install_packages.sh:3:}}'
+sudo bash -c '\
+{{#include ../../setup/install_packages.sh:3:}}'
 ```
 
 Let us add the current user to the `dialout` group in order to run the `cu`
@@ -86,19 +87,19 @@ and select the `arm-linux-gnueabihf-` toolchain we installed before.
 
 That wasn't too bad, so now let's try to boot CHIP.
 First, connect the `TX` wire of your USB serial adapter to CHIP's `RX` pin and
-the `RX` wir of your USB serial adapter to CHIP's `TX` pin.
+the `RX` wire of your USB serial adapter to CHIP's `TX` pin.
 Also connect a `GND` pin of your USB serial adapter to one of CHIP's `GND`
 pins:
 
 ![C.H.I.P. connected](chip_connected.png)
 
 Then, open a new terminal window in which we're going to run `cu`:
-```shell
+```shell,ignore
 cu -l /dev/ttyUSB0 -s 115200
 ```
 
 Then in our original terminal window in the `u-boot-v2023.10` directory, type
-```shell
+```shell,ignore
 sunxi-fel -v uboot u-boot-sunxi-with-spl.bin 
 ```
 which should produce something like the following as output:
@@ -187,7 +188,7 @@ ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- make -j$(nproc) dtbs
 
 OK, now let's boot into linux:
 
-```shell
+```shell,ignore
 cd ..
 sunxi-fel -v uboot u-boot-v2023.10/u-boot-sunxi-with-spl.bin \
           write 0x42000000 linux-6.1.62/arch/arm/boot/zImage \
@@ -281,7 +282,7 @@ u-boot-v2023.10/tools/mkimage -A arm -O linux -T ramdisk -C gzip -d rootfs.cpio.
 Now that we have a root file system we can download it to CHIP's RAM and boot
 into it:
 
-```shell
+```shell,ignore
 sunxi-fel -v uboot u-boot-v2023.10/u-boot-sunxi-with-spl.bin \
   write 0x42000000 linux-6.1.62/arch/arm/boot/zImage \
   write 0x43000000 linux-6.1.62/arch/arm/boot/dts/sun5i-r8-chip.dtb \
