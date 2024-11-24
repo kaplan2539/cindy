@@ -1,7 +1,7 @@
 # Warmup: Boot the latest Linux LTS 
 
 In this warm-up exercise were going to show that C.H.I.P is not dead: We are
-booting into the latest Linux LTS release (6.1.62 at the time of writing).
+booting into the latest Linux LTS release (6.6.63 at the time of writing).
 
 ## Hardware
 
@@ -25,7 +25,7 @@ sudo bash -c '\
 
 Let us add the current user to the `dialout` group in order to run the `cu`
 without being a super-user:
-```shell
+```shell,ignore
 sudo adduser $USER dialout
 ```
 For the change to take effect we need to logout and login again.
@@ -43,7 +43,7 @@ USB port of your computer.
 ![C.H.I.P. connected in FEL mode](chip_fel_connected.png)
 
 Then type:
-```shell
+```shell,ignore
 sunxi-fel ver
 ```
 
@@ -61,24 +61,31 @@ ERROR: Allwinner USB FEL device not found!
 
 ## U-BOOT
 
-At the time of writing, the latest U-Boot release was v2023.10.
-Download & unpack:
+We won't directly boot into Linux.
+We are going to have the U-Boot bootloader do some initialization of the hardware first.
+To download and unpack U-Boot type:
 
 ```shell
-# Downloading U-Boot
-wget https://source.denx.de/u-boot/u-boot/-/archive/v2023.10/u-boot-v2023.10.tar.bz2
+# Set U-Boot version
+export UBOOT_VER=2024.10
 
-# Extracting U-Boot
-tar xf u-boot-v2023.10.tar.bz2
+echo "# Downloading U-Boot"
+wget -c -P download https://source.denx.de/u-boot/u-boot/-/archive/v${UBOOT_VER}/u-boot-v${UBOOT_VER}.tar.bz2
+
+echo "# Extracting U-Boot"
+mkdir -p build
+tar x -C build -f download/u-boot-v${UBOOT_VER}.tar.bz2
 ```
 
-There's even a default config for CHIP in `u-boot-v2023.10/configs/CHIP_defconfig`!
+There's even a default config for CHIP in `u-boot-v${UBOOT_VER}/configs/CHIP_defconfig`!
 
 Now, let's build U-Boot for CHIP:
 
 ```shell
+pushd build/u-boot-v${UBOOT_VER}
 ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- make CHIP_defconfig
 ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- make -j$(nproc)
+popd
 ```
 Some explanation: We're calling `make` and set the target architecture to `arm`
 and select the `arm-linux-gnueabihf-` toolchain we installed before.
@@ -98,7 +105,7 @@ Then, open a new terminal window in which we're going to run `cu`:
 cu -l /dev/ttyUSB0 -s 115200
 ```
 
-Then in our original terminal window in the `u-boot-v2023.10` directory, type
+Then in our original terminal window in the `build/u-boot-v${UBOOT_VER}` directory, type
 ```shell,ignore
 sunxi-fel -v uboot u-boot-sunxi-with-spl.bin 
 ```
@@ -114,31 +121,30 @@ Setting write-combine mapping for DRAM.
 Setting cached mapping for BROM.
 Writing back the MMU translation table.
 Enabling I-cache, MMU and branch prediction... done.
-Writing image "U-Boot 2023.10 for sunxi board", 557984 bytes @ 0x4A000000.
+Writing image "U-Boot 2024.10 for sunxi board", 534068 bytes @ 0x4A000000.
 Starting U-Boot (0x4A000000).
 ```
 
 In our `cu` terminal window we are going to see something similar to:
 ```
-Connected to /dev/ttyUSB0 (speed 115200)
-
-U-Boot SPL 2023.10 (Nov 30 2023 - 14:27:33 +0000)
+U-Boot SPL 2024.10 (Nov 24 2024 - 23:07:20 +0100)
 DRAM: 512 MiB
 CPU: 1008000000Hz, AXI/AHB/APB: 3/2/2
 Trying to boot from FEL
 
 
-U-Boot 2023.10 (Nov 30 2023 - 14:27:33 +0000) Allwinner Technology
+U-Boot 2024.10 (Nov 24 2024 - 23:07:20 +0100) Allwinner Technology
 
 CPU:   Allwinner A13 (SUN5I)
 Model: NextThing C.H.I.P.
 DRAM:  512 MiB
-Core:  58 devices, 21 uclasses, devicetree: separate
+Core:  60 devices, 20 uclasses, devicetree: separate
 WDT:   Not starting watchdog@1c20c90
-MMC:   mmc@1c0f000: 0
-Loading Environment from FAT... Card did not respond to voltage select! : -110
-** Bad device specification mmc 0 **
-Setting up a 1024x768 vga console (overscan 0x0)
+Loading Environment from nowhere... OK
+DDC: timeout reading EDID
+DDC: timeout reading EDID
+DDC: timeout reading EDID
+Setting up a 720x576i composite-pal console (overscan 32x20)
 In:    serial,usbkbd
 Out:   serial,vidconsole
 Err:   serial,vidconsole
@@ -148,14 +154,15 @@ MAC de:ad:be:ef:00:01
 HOST MAC de:ad:be:ef:00:00
 RNDIS ready
 eth0: usb_ether
+
 starting USB...
 Bus usb@1c14000: USB EHCI 1.00
 Bus usb@1c14400: USB OHCI 1.0
 scanning bus usb@1c14000 for devices... 1 USB Device(s) found
 scanning bus usb@1c14400 for devices... 1 USB Device(s) found
-scanning usb for storage devices... 0 Storage Device(s) found
-Hit any key to stop autoboot:  0 
-=> 
+       scanning usb for storage devices... 0 Storage Device(s) found
+Hit any key to stop autoboot:  0
+=>
 ```
 
 If you're not hitting the "any" key fast enough, U-Boot is going into it's
@@ -168,31 +175,32 @@ U-Boot release which is already great.
 
 ## Linux
 
-At the time of writing, the latest Linux LTS kernel is 6.1.62, which we
+At the time of writing, the latest Linux LTS kernel is 6.6.63, which we
 donwnload and extract by typing:
 
 ```shell
-wget -c https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.1.62.tar.xz
-tar xf linux-6.1.62.tar.xz
+export LINUX_VER=6.6.63
+wget -c -P download https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${LINUX_VER}.tar.xz
+tar x -C build -f download/linux-${LINUX_VER}.tar.xz
 ```
 
 Let's try building with the `sunxi_defconfig` which can be found in
-`linux-6.1.62/arch/arm/configs`:
+`linux-${LINUX_VER}/arch/arm/configs`:
 
 ```shell
-cd linux-6.1.62
+pushd build/linux-${LINUX_VER}
 ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- make sunxi_defconfig
 ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- make -j$(nproc) zImage
 ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- make -j$(nproc) dtbs
+popd
 ```
 
 OK, now let's boot into linux:
 
 ```shell,ignore
-cd ..
-sunxi-fel -v uboot u-boot-v2023.10/u-boot-sunxi-with-spl.bin \
-          write 0x42000000 linux-6.1.62/arch/arm/boot/zImage \
-          write 0x43000000 linux-6.1.62/arch/arm/boot/dts/sun5i-r8-chip.dtb 
+sunxi-fel -v uboot u-boot-v${UBOOT_VER}/u-boot-sunxi-with-spl.bin \
+          write 0x42000000 linux-${LINUX_VER}/arch/arm/boot/zImage \
+          write 0x43000000 linux-${LINUX_VER}/arch/arm/boot/dts/sun5i-r8-chip.dtb
 ```
 
 In the `cu` terminal window type:
@@ -243,32 +251,35 @@ filesystem (rootfs). Let's build one using Busybox!
 
 Download Busybox
 ```shell
-wget -c -P downlad https://busybox.net/downloads/busybox-1.36.1.tar.bz2
-tar x -C build -f download/busybox-1.36.1.tar.bz2
+export BUSYBOX_VER=1.36.1
+wget -c -P download https://busybox.net/downloads/busybox-${BUSYBOX_VER}.tar.bz2
+tar x -C build -f download/busybox-${BUSYBOX_VER}.tar.bz2
 ```
 
 Configure & Compile:
 ```shell
-cd build/busybox-1.36.1
+pushd build/busybox-${BUSYBOX_VER}
 ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- make defconfig
 sed -e 's/# CONFIG_STATIC is not set/CONFIG_STATIC=y/' -i .config
 ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- make -j$(nproc)
-mkdir ../rootfs
-ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- make CONFIG_PREFIX=./../rootfs install
+rm -rf ../rootfs
+mkdir -p ../rootfs
+ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- make CONFIG_PREFIX=../rootfs install
+popd
 ```
 
 Finalize initramfs:
 ```shell
-cat > rootfs/init << EOF
+cat > build/rootfs/init << EOF
 #!/bin/sh
 mount -t proc none /proc
 mount -t sysfs none /sys
 exec /bin/sh
 EOF
-chmod a+x rootfs/init
+chmod a+x build/rootfs/init
 
 fakeroot -- /bin/bash -c '\
-    cd rootfs; \
+    cd build/rootfs; \
     mkdir -p dev etc home mnt proc sys
     for i in `seq 1 6`; do \
         mknod dev/tty$i c 4 1; \
@@ -276,21 +287,21 @@ fakeroot -- /bin/bash -c '\
     mknod dev/console c 5 1; \
     find . |cpio -o -H newc |gzip >../rootfs.cpio.gz; \
 '
-u-boot-v2023.10/tools/mkimage -A arm -O linux -T ramdisk -C gzip -d rootfs.cpio.gz rootfs.cpio.gz.uboot
+build/u-boot-v${UBOOT_VER}/tools/mkimage -A arm -O linux -T ramdisk -C gzip -d build/rootfs.cpio.gz build/rootfs.cpio.gz.uboot
 ```
 
 Now that we have a root file system we can download it to CHIP's RAM and boot
 into it:
 
 ```shell,ignore
-sunxi-fel -v uboot u-boot-v2023.10/u-boot-sunxi-with-spl.bin \
-  write 0x42000000 linux-6.1.62/arch/arm/boot/zImage \
-  write 0x43000000 linux-6.1.62/arch/arm/boot/dts/sun5i-r8-chip.dtb \
-  write 0x43400000 rootfs.cpio.gz.uboot
+sunxi-fel -v uboot build/u-boot-v${UBOOT_VER}/u-boot-sunxi-with-spl.bin \
+  write 0x42000000 build/linux-${LINUX_VER}/arch/arm/boot/zImage \
+  write 0x43000000 build/linux-${LINUX_VER}/arch/arm/boot/dts/allwinner/sun5i-r8-chip.dtb \
+  write 0x43400000 build/rootfs.cpio.gz.uboot
 ```
 
 In the `cu` terminal window type:
 
-```
-=> bootz 0x42000000 0x43400000 0x43000000
+```shell,ignore
+bootz 0x42000000 0x43400000 0x43000000
 ```

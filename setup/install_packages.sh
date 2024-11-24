@@ -23,4 +23,5 @@ apt-get -y install \
   libncurses-dev \
   rsync \
   file \
+  gnutls-dev \
 
