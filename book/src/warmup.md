@@ -20,7 +20,7 @@ These commands are going to install a cross-compiler toolchain, the
 
 ```shell
 sudo bash -c '\
-{{#include ../../setup/install_packages.sh:3:}}'
+{{#include ../../scripts/install_packages.sh:3:}}'
 ```
 
 Let us add the current user to the `dialout` group in order to run the `cu`
@@ -70,6 +70,7 @@ To download and unpack U-Boot type:
 export UBOOT_VER=2024.10
 
 echo "# Downloading U-Boot"
+mkdir -p download
 wget -c -P download https://source.denx.de/u-boot/u-boot/-/archive/v${UBOOT_VER}/u-boot-v${UBOOT_VER}.tar.bz2
 
 echo "# Extracting U-Boot"

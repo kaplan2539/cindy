@@ -17,8 +17,18 @@ Luckily, Buildroot comes with
 Download and unpack the latest "stable" release:
 
 ```shell
-wget -c -P download https://buildroot.org/downloads/buildroot-2023.11.tar.gz
-tar xf download/buildroot-2023.11.tar.gz
+# set U-Boot version
+export UBOOT_VER=2024.10
+export LINUX_VER=6.6.63
+
+# set Buildroot version
+export BR=buildroot-2024.02.8
+
+mkdir -p download
+
+echo "# Downloading Buildroot"
+wget -c -P download https://buildroot.org/downloads/${BR}.tar.gz
+tar xf download/${BR}.tar.gz
 ```
 
 ## Customizing Buildroot for CHIP
@@ -28,32 +38,32 @@ We are going to use the 'br2-external' mechanism (c.f. Buildroot documentation
  ) in order to keep our
 costumizations outside of the official buildroot tree:
 
-```
-mkdir buildroot-external
+```shell
+mkdir -p buildroot-external
 export BR2_EXTERNAL="$(realpath buildroot-external)"
 ```
 
-Create `buildroot-external/external.desc`:
+Create `external.desc`:
 
-```
-cat <<EOF >buildroot-external/external.desc
+```shell
+cat <<EOF >"${BR2_EXTERNAL}"/external.desc
 name: CHIP
 desc: Buildroot configuration for CHIP
 EOF
 ```
 
-Create `buildroot-external/external.mk`:
+Create `external.mk`:
 
-```
-cat <<EOF >buildroot-external/external.mk
+```shell
+cat <<EOF >"${BR2_EXTERNAL}"/external.mk
 include \$(sort \$(wildcard \$(BR2_EXTERNAL_CHIP_PATH)/package/*/*.mk))
 EOF
 ```
 
-Create empty `buildroot-external/Config.in`:
+Create empty `Config.in`:
 
-```
-touch buildroot-external/Config.in
+```shell
+touch "${BR2_EXTERNAL}"/Config.in
 ```
 
 Create
@@ -74,11 +84,11 @@ BR2_cortex_a8=y
 BR2_TOOLCHAIN_EXTERNAL=y
 BR2_LINUX_KERNEL=y
 BR2_LINUX_KERNEL_CUSTOM_VERSION=y
-BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE="6.1.68"
+BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE="${LINUX_VER}"
 BR2_LINUX_KERNEL_PATCH="\${BR2_EXTERNAL_CHIP_PATH}/board/nextthingco/CHIP/linux"
 BR2_LINUX_KERNEL_DEFCONFIG="sunxi"
 BR2_LINUX_KERNEL_DTS_SUPPORT=y
-BR2_LINUX_KERNEL_INTREE_DTS_NAME="sun5i-r8-chip"
+BR2_LINUX_KERNEL_INTREE_DTS_NAME="allwinner/sun5i-r8-chip"
 BR2_LINUX_KERNEL_DTB_OVERLAY_SUPPORT=y
 BR2_LINUX_KERNEL_INSTALL_TARGET=y
 BR2_TARGET_ROOTFS_CPIO=y
@@ -87,7 +97,7 @@ BR2_TARGET_ROOTFS_CPIO_UIMAGE=y
 BR2_TARGET_UBOOT=y
 BR2_TARGET_UBOOT_BUILD_SYSTEM_KCONFIG=y
 BR2_TARGET_UBOOT_CUSTOM_VERSION=y
-BR2_TARGET_UBOOT_CUSTOM_VERSION_VALUE="2023.10"
+BR2_TARGET_UBOOT_CUSTOM_VERSION_VALUE="${UBOOT_VER}"
 BR2_TARGET_UBOOT_PATCH="\${BR2_EXTERNAL_CHIP_PATH}/board/nextthingco/CHIP/uboot"
 BR2_TARGET_UBOOT_BOARD_DEFCONFIG="CHIP"
 BR2_TARGET_UBOOT_NEEDS_DTC=y
@@ -100,7 +110,7 @@ EOF
 Now compile Linux, U-Boot and build a rootfs image using Buildroot:
 
 ```shell
-cd buildroot-2023.11
+cd "${BR}"
 make nextthingco_chip_defconfig
 make
 ```
@@ -125,5 +135,5 @@ for more details.
 
 To boot, type the following in the `cu` terminal window:
 ```
-=> bootz 0x42000000 0x50000000 0x43000000
+bootz 0x42000000 0x50000000 0x43000000
 ```
