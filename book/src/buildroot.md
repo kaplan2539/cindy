@@ -1,6 +1,6 @@
 # Buildroot
 
-In the Warm Up Excercise chapter we've manually installed a cross-compiler,
+In the Warm-Up exercise chapter we've manually installed a cross-compiler,
 downloaded the U-Boot, Linux and Busybox sources, compiled them and created
 a rootfs image.
 In this chapter we are going to use Buildroot to do that for us.
@@ -36,7 +36,7 @@ tar xf download/${BR}.tar.gz
 We are going to use the 'br2-external' mechanism (c.f. Buildroot documentation
  [Chapter 9.2](https://buildroot.org/downloads/manual/manual.html#outside-br-custom)
  ) in order to keep our
-costumizations outside of the official buildroot tree:
+customizations outside of the official Buildroot tree:
 
 ```shell
 mkdir -p buildroot-external
@@ -129,7 +129,7 @@ sunxi-fel -v -p uboot u-boot-sunxi-with-spl.bin \
 NOTE: We are uploading the root file system to address `0x50000000` now.
 If the rootfs gets bigger we might get into trouble uploading it into the
 memory region between `0x4300000000` and `0x4fffffff`.
-Read the [Sunxi Website](https://linux-sunxi.org/Initial_Ramdisk) and
+Read the [Sunxi website](https://linux-sunxi.org/Initial_Ramdisk) and
 [this post](https://groups.google.com/g/linux-sunxi/c/Itt3Bko0bVA/m/Mqt5zTj1qaIJ)
 for more details.
 

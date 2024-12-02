@@ -1,4 +1,4 @@
-# Warmup: Boot the latest Linux LTS 
+# Warm up: Boot the latest Linux LTS 
 
 In this warm-up exercise were going to show that C.H.I.P is not dead: We are
 booting into the latest Linux LTS release (6.6.63 at the time of writing).
@@ -33,7 +33,7 @@ For the change to take effect we need to logout and login again.
 ## FEL
 
 We run the `sunxi-fel` tool to verify CHIP is connected properly in FEL mode.
-The `sunxi-fel` tool will also be used to download executeable code for
+The `sunxi-fel` tool will also be used to download executable code for
 booting CHIP later.
 
 For now, we disconnect CHIP from everything, connect the FEL pin to a GND pin
@@ -62,7 +62,7 @@ ERROR: Allwinner USB FEL device not found!
 ## U-BOOT
 
 We won't directly boot into Linux.
-We are going to have the U-Boot bootloader do some initialization of the hardware first.
+We are going to have the U-Boot boot loader do some initialization of the hardware first.
 To download and unpack U-Boot type:
 
 ```shell
@@ -78,7 +78,7 @@ mkdir -p build
 tar x -C build -f download/u-boot-v${UBOOT_VER}.tar.bz2
 ```
 
-There's even a default config for CHIP in `u-boot-v${UBOOT_VER}/configs/CHIP_defconfig`!
+There's even a default configuration for CHIP in `u-boot-v${UBOOT_VER}/configs/CHIP_defconfig`!
 
 Now, let's build U-Boot for CHIP:
 
@@ -167,7 +167,7 @@ Hit any key to stop autoboot:  0
 ```
 
 If you're not hitting the "any" key fast enough, U-Boot is going into it's
-autoboot loop. Don't worry that doesn't cause any damage. You'll just have to
+auto-boot loop. Don't worry that doesn't cause any damage. You'll just have to
 sit it out.
 Eventually you'll end up with an interactive prompt and can go explore.
 CHIP's USB port seems to be detected. However, then NAND is not.
@@ -177,7 +177,7 @@ U-Boot release which is already great.
 ## Linux
 
 At the time of writing, the latest Linux LTS kernel is 6.6.63, which we
-donwnload and extract by typing:
+download and extract by typing:
 
 ```shell
 export LINUX_VER=6.6.63
@@ -196,7 +196,7 @@ ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- make -j$(nproc) dtbs
 popd
 ```
 
-OK, now let's boot into linux:
+OK, now let's boot into Linux:
 
 ```shell,ignore
 sunxi-fel -v uboot u-boot-v${UBOOT_VER}/u-boot-sunxi-with-spl.bin \
@@ -210,7 +210,7 @@ In the `cu` terminal window type:
 => bootz 0x42000000 - 0x43000000
 ```
 
-and you shoud see Linux trying to boot:
+and you should see Linux trying to boot:
 
 ```
 Kernel image @ 0x42000000 [ 0x000000 - 0x4eb9f8 ]
