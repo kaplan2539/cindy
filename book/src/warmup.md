@@ -1,6 +1,6 @@
 # Warm up: Boot the latest Linux LTS 
 
-In this warm-up exercise were going to show that C.H.I.P is not dead: We are
+In this warm-up exercise we are going to show that C.H.I.P is not dead: We are
 booting into the latest Linux LTS release (6.6.63 at the time of writing).
 
 ## Hardware
@@ -167,8 +167,7 @@ Hit any key to stop autoboot:  0
 ```
 
 If you're not hitting the "any" key fast enough, U-Boot is going into it's
-auto-boot loop. Don't worry that doesn't cause any damage. You'll just have to
-sit it out.
+auto-boot loop. Don't worry that doesn't cause any damage. You'll just have to sit it out.
 Eventually you'll end up with an interactive prompt and can go explore.
 CHIP's USB port seems to be detected. However, then NAND is not.
 We'll get to that later. For now, we've shown we can boot into a recent
@@ -242,7 +241,7 @@ and then fail because we don't have a rootfs yet:
 [    1.493588] ---[ end Kernel panic - not syncing: VFS: Unable to mount root fs on unknown-block(0,0) ]---
 ```
 
-Exciting times! We've just ran the latest Linux LTS (for one second or so)! 
+Exciting times! We've just run the latest Linux LTS (for one second or so)! 
 
 
 ## Busybox Rootfs
@@ -291,8 +290,7 @@ fakeroot -- /bin/bash -c '\
 build/u-boot-v${UBOOT_VER}/tools/mkimage -A arm -O linux -T ramdisk -C gzip -d build/rootfs.cpio.gz build/rootfs.cpio.gz.uboot
 ```
 
-Now that we have a root file system we can download it to CHIP's RAM and boot
-into it:
+Now that we have a root file system, we can download it to CHIP's RAM and boot into it:
 
 ```shell,ignore
 sunxi-fel -v uboot build/u-boot-v${UBOOT_VER}/u-boot-sunxi-with-spl.bin \
