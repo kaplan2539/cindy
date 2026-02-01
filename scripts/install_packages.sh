@@ -13,6 +13,7 @@ apt-get -y install \
   flex \
   python3 \
   python3-pip \
+  python3-setuptools \
   swig \
   libssl-dev \
   sudo \

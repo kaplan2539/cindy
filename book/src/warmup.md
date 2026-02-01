@@ -1,7 +1,7 @@
 # Warm up: Boot the latest Linux LTS 
 
 In this warm-up exercise we are going to show that C.H.I.P is not dead: We are
-booting into the latest Linux LTS release (6.6.63 at the time of writing).
+booting into the latest Linux LTS release (6.12.66 at the time of writing).
 
 ## Hardware
 
@@ -24,9 +24,10 @@ sudo bash -c '\
 ```
 
 Let us add the current user to the `dialout` group in order to run the `cu`
-without being a super-user:
+and `sunxi-fel` tools without being a super-user:
 ```shell,ignore
 sudo adduser $USER dialout
+sudo adduser $USER plugdev
 ```
 For the change to take effect we need to logout and login again.
 
@@ -36,6 +37,16 @@ We run the `sunxi-fel` tool to verify CHIP is connected properly in FEL mode.
 The `sunxi-fel` tool will also be used to download executable code for
 booting CHIP later.
 
+To be able run the `sunxi-fel` tool without root-permissions we also need to
+add the following to the udev rules and reload them:
+```
+cat <<EOF |sudo tee /etc/udev/rules.d/50-chip.rules
+SUBSYSTEM=="usb", ATTR{idVendor}=="1f3a", ATTR{idProduct}=="efe8", MODE="0666", GROUP="plugdev"
+EOF
+sudo udevadm control --reload-rules
+```
+
+### Verify we can talk to CHIP
 For now, we disconnect CHIP from everything, connect the FEL pin to a GND pin
 on CHIP and then use the USB-data cable to connect CHIP's micro USB port to a
 USB port of your computer.
@@ -67,7 +78,7 @@ To download and unpack U-Boot type:
 
 ```shell
 # Set U-Boot version
-export UBOOT_VER=2024.10
+export UBOOT_VER=2026.01
 
 echo "# Downloading U-Boot"
 mkdir -p download
@@ -112,7 +123,7 @@ sunxi-fel -v uboot u-boot-sunxi-with-spl.bin
 ```
 which should produce something like the following as output:
 ```
-found DT name in SPL header: sun5i-r8-chip
+found DT name in SPL header: allwinner/sun5i-r8-chip
 Enabling the L2 cache
 Stack pointers: sp_irq=0x00002000, sp=0x00005DF8
 Reading the MMU translation table from 0x00008000
@@ -122,24 +133,24 @@ Setting write-combine mapping for DRAM.
 Setting cached mapping for BROM.
 Writing back the MMU translation table.
 Enabling I-cache, MMU and branch prediction... done.
-Writing image "U-Boot 2024.10 for sunxi board", 534068 bytes @ 0x4A000000.
+Writing image "U-Boot 2026.01 for sunxi board", 547592 bytes @ 0x4A000000.
 Starting U-Boot (0x4A000000).
 ```
 
 In our `cu` terminal window we are going to see something similar to:
 ```
-U-Boot SPL 2024.10 (Nov 24 2024 - 23:07:20 +0100)
+U-Boot SPL 2026.01 (Jan 21 2026 - 20:41:14 +0100)
 DRAM: 512 MiB
 CPU: 1008000000Hz, AXI/AHB/APB: 3/2/2
 Trying to boot from FEL
 
 
-U-Boot 2024.10 (Nov 24 2024 - 23:07:20 +0100) Allwinner Technology
+U-Boot 2026.01 (Jan 21 2026 - 20:41:14 +0100) Allwinner Technology
 
 CPU:   Allwinner A13 (SUN5I)
 Model: NextThing C.H.I.P.
 DRAM:  512 MiB
-Core:  60 devices, 20 uclasses, devicetree: separate
+Core:  61 devices, 21 uclasses, devicetree: separate
 WDT:   Not starting watchdog@1c20c90
 Loading Environment from nowhere... OK
 DDC: timeout reading EDID
@@ -157,12 +168,12 @@ RNDIS ready
 eth0: usb_ether
 
 starting USB...
-Bus usb@1c14000: USB EHCI 1.00
-Bus usb@1c14400: USB OHCI 1.0
-scanning bus usb@1c14000 for devices... 1 USB Device(s) found
-scanning bus usb@1c14400 for devices... 1 USB Device(s) found
+USB EHCI 1.00
+USB OHCI 1.0
+Bus usb@1c14000: 1 USB Device(s) found
+Bus usb@1c14400: 1 USB Device(s) found
        scanning usb for storage devices... 0 Storage Device(s) found
-Hit any key to stop autoboot:  0
+Hit any key to stop autoboot: 0
 =>
 ```
 
@@ -175,11 +186,10 @@ U-Boot release which is already great.
 
 ## Linux
 
-At the time of writing, the latest Linux LTS kernel is 6.6.63, which we
-download and extract by typing:
+Download and unpack the latest Linux LTS kernel:
 
 ```shell
-export LINUX_VER=6.6.63
+export LINUX_VER=6.12.66
 wget -c -P download https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${LINUX_VER}.tar.xz
 tar x -C build -f download/linux-${LINUX_VER}.tar.xz
 ```
@@ -198,15 +208,17 @@ popd
 OK, now let's boot into Linux:
 
 ```shell,ignore
+pushd build
 sunxi-fel -v uboot u-boot-v${UBOOT_VER}/u-boot-sunxi-with-spl.bin \
           write 0x42000000 linux-${LINUX_VER}/arch/arm/boot/zImage \
-          write 0x43000000 linux-${LINUX_VER}/arch/arm/boot/dts/sun5i-r8-chip.dtb
+          write 0x43000000 linux-${LINUX_VER}/arch/arm/boot/dts/allwinner/sun5i-r8-chip.dtb
+popd
 ```
 
 In the `cu` terminal window type:
 
 ```
-=> bootz 0x42000000 - 0x43000000
+bootz 0x42000000 - 0x43000000
 ```
 
 and you should see Linux trying to boot:
@@ -260,7 +272,11 @@ Configure & Compile:
 ```shell
 pushd build/busybox-${BUSYBOX_VER}
 ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- make defconfig
+
 sed -e 's/# CONFIG_STATIC is not set/CONFIG_STATIC=y/' -i .config
+sed -e 's/CONFIG_TC=y/# CONFIG_TC is not set/' -i .config
+sed -e 's/CONFIG_FEATURE_TC_INGRESS=y/# CONFIG_FEATURE_TC_INGRESS is not set/' -i .config
+
 ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- make -j$(nproc)
 rm -rf ../rootfs
 mkdir -p ../rootfs
