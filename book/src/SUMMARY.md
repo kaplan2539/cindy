@@ -5,4 +5,4 @@
 
 - [Warm Up](./warmup.md)
 - [Buildroot](./buildroot.md)
-- [NAND](./nand.md)
+- [NAND Support](./nand_support.md)

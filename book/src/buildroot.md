@@ -14,15 +14,17 @@ Luckily, Buildroot comes with
 [detailed documentation](https://buildroot.org/downloads/manual/manual.html)
  that should cover everything important to know.
 
-Download and unpack the latest "stable" release:
+Download and unpack the latest "LTS" release:
 
 ```shell
 # set U-Boot version
-export UBOOT_VER=2024.10
-export LINUX_VER=6.6.63
+export UBOOT_VER=2026.01
+
+# set Linux version
+export LINUX_VER=6.12.68
 
 # set Buildroot version
-export BR=buildroot-2024.02.8
+export BR=buildroot-2025.02.10
 
 mkdir -p download
 
@@ -103,7 +105,7 @@ BR2_TARGET_UBOOT_BOARD_DEFCONFIG="CHIP"
 BR2_TARGET_UBOOT_NEEDS_DTC=y
 BR2_TARGET_UBOOT_NEEDS_PYLIBFDT=y
 BR2_TARGET_UBOOT_SPL=y
-BR2_TARGET_UBOOT_SPL_NAME="u-boot-sunxi-with-spl.bin spl/u-boot-spl.bin"
+BR2_TARGET_UBOOT_SPL_NAME="u-boot-sunxi-with-spl.bin spl/sunxi-spl.bin"
 EOF
 ```
 
