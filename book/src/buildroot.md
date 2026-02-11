@@ -18,19 +18,31 @@ Download and unpack the latest "LTS" release:
 
 ```shell
 # set U-Boot version
-export UBOOT_VER=2026.01
+export UBOOT_VER=
+LATEST_TAG=$( curl -s "https://gitlab.com/api/v4/projects/u-boot%2Fu-boot/repository/tags?order_by=version&sort=desc" \
+  | jq -r '[ .[] | select(.name | test("-rc") | not) ][0].name'
+)
 
-# set Linux version
-export LINUX_VER=6.12.68
+# Retrieve latest Linux version
+export LINUX_VER=$(curl -s https://www.kernel.org/releases.json | jq -r '
+    [ .releases[] | select(.moniker=="longterm") | .version ]
+    | sort_by(split(".") | map(tonumber)) | last
+')
 
 # set Buildroot version
-export BR=buildroot-2025.02.10
+export BR_VER=2025.02.10
 
-mkdir -p download
+# define working dir - use absolute paths!
+export WORK_DIR="${HOME}/Projects/CHIP-BUILDROOT-${BR_VER}"
+export DOWNLOAD_DIR="${WORK_DIR}/download"
+export BR_DIR="${WORK_DIR}/buildroot-${BR_VER}"
+
+mkdir -p ${WORK_DIR}
+mkdir -p ${DOWNLOAD_DIR}
 
 echo "# Downloading Buildroot"
-wget -c -P download https://buildroot.org/downloads/${BR}.tar.gz
-tar xf download/${BR}.tar.gz
+wget -c -P "${DOWNLOAD_DIR}" https://buildroot.org/downloads/buildroot-${BR_VER}.tar.gz
+tar -C "${WORK_DIR}" -x -f "${DOWNLOAD_DIR}/buildroot-${BR_VER}.tar.gz"
 ```
 
 ## Customizing Buildroot for CHIP
@@ -41,8 +53,8 @@ We are going to use the 'br2-external' mechanism (c.f. Buildroot documentation
 customizations outside of the official Buildroot tree:
 
 ```shell
-mkdir -p buildroot-external
-export BR2_EXTERNAL="$(realpath buildroot-external)"
+export BR2_EXTERNAL="${WORK_DIR}/buildroot-external"
+mkdir -p "${BR2_EXTERNAL}"
 ```
 
 Create `external.desc`:
@@ -112,7 +124,7 @@ EOF
 Now compile Linux, U-Boot and build a rootfs image using Buildroot:
 
 ```shell
-cd "${BR}"
+cd "${BR_DIR}"
 make nextthingco_chip_defconfig
 make
 ```
@@ -121,7 +133,7 @@ Buildroot put everything into the `output/images` sub-directory.
 The following commands are booting into U-Boot SPL and then upload the Linux
 kernel, the device tree and the Buildroot root file system into CHIP's DRAM:
 ```shell
-cd output/images
+cd "${BR_DIR}/output/images"
 sunxi-fel -v -p uboot u-boot-sunxi-with-spl.bin \
                 write 0x42000000 zImage \
                 write 0x43000000 sun5i-r8-chip.dtb \

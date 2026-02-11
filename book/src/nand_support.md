@@ -37,53 +37,53 @@ EOF
 The device tree for CHIP included in the Linux source does not enable the NAND.
 We need to create a patch that we place in `buildroot-external/board/nextthingco/CHIP/sun5i-r8-chip.dts.nand.patch`:
 ```
-cat <<EOF >${BR2_EXTERNAL}/board/nextthingco/CHIP/linux/sun5i-r8-chip.dts.nand.patch
---- a/arch/arm/boot/dts/allwinner/sun5i-r8-chip.dts     2024-11-27 11:25:04.172206469 +0100
-+++ b/arch/arm/boot/dts/allwinner/sun5i-r8-chip.dts     2024-12-02 10:34:49.783858862 +0100
+cat <<EOF |sed -e 's/^         / \t/; s/        /\t/g; s/+ $/+/g' >${BR2_EXTERNAL}/board/nextthingco/CHIP/linux/sun5i-r8-chip.dts.nand.patch
+--- a/arch/arm/boot/dts/allwinner/sun5i-r8-chip.dts        2026-02-11 22:47:01.214772251 +0100
++++ b/arch/arm/boot/dts/allwinner/sun5i-r8-chip.dts        2026-02-11 22:48:26.003942388 +0100
 @@ -280,3 +280,44 @@
-        usb0_vbus-supply = <&reg_usb0_vbus>;
-        usb1_vbus-supply = <&reg_vcc5v0>;
+         usb0_vbus-supply = <&reg_usb0_vbus>;
+         usb1_vbus-supply = <&reg_vcc5v0>;
  };
 +
 +&nfc {
-+       pinctrl-names = "default";
-+       pinctrl-0 = <&nand_pins &nand_cs0_pin &nand_rb0_pin>;
-+       status = "okay";
++        pinctrl-names = "default";
++        pinctrl-0 = <&nand_pins &nand_cs0_pin &nand_rb0_pin>;
++        status = "okay";
 +
-+       nand@0 {
-+               #address-cells = <2>;
-+               #size-cells = <2>;
-+               reg = <0>;
-+               allwinner,rb = <0>;
-+               nand-ecc-mode = "hw";
-+               nand-ecc-maximize;
-+               nand-on-flash-bbt;
-+               spl@0 {
-+                   label = "SPL";
-+                   reg = /bits/ 64 <0x0 0x400000>;
-+               };
++        nand@0 {
++                #address-cells = <2>;
++                #size-cells = <2>;
++                reg = <0>;
++                allwinner,rb = <0>;
++                nand-ecc-mode = "hw";
++                nand-ecc-maximize;
++                nand-on-flash-bbt;
++                spl@0 {
++                        label = "SPL";
++                        reg = /bits/ 64 <0x0 0x400000>;
++                };
 +
-+               spl-backup@400000 {
-+                   label = "SPL.backup";
-+                   reg = /bits/ 64 <0x400000 0x400000>;
-+               };
++                spl-backup@400000 {
++                        label = "SPL.backup";
++                        reg = /bits/ 64 <0x400000 0x400000>;
++                };
 +
-+               u-boot@800000 {
-+                   label = "U-Boot";
-+                   reg = /bits/ 64 <0x800000 0x400000>;
-+               };
++                u-boot@800000 {
++                        label = "U-Boot";
++                        reg = /bits/ 64 <0x800000 0x400000>;
++                };
 +
-+               env@c00000 {
-+                   label = "env";
-+                   reg = /bits/ 64 <0xc00000 0x400000>;
-+               };
++                env@c00000 {
++                        label = "env";
++                        reg = /bits/ 64 <0xc00000 0x400000>;
++                };
 +
-+               rootfs@1000000 {
-+                   label = "rootfs";
-+                   reg = /bits/ 64 <0x1000000 0x1ff000000>;
-+                   slc-mode;
-+               };
-+       };
++                rootfs@1000000 {
++                        label = "rootfs";
++                        reg = /bits/ 64 <0x1000000 0x1ff000000>;
++                        slc-mode;
++                };
++        };
 +};
 EOF
 ```
@@ -101,14 +101,15 @@ EOF
 
 It is time to build our new Buildroot configuration:
 ```
-pushd "${BR}" && make nextthingco_chip_defconfig; make; popd
-```
-
+cd "${BR_DIR}"
+make nextthingco_chip_defconfig;
+make linux-rebuild
+make
 ```
 
 Boot into our new OS image:
 ```shell,ignore
-cd output/images
+cd ${BR_DIR}/output/images
 sunxi-fel -v -p uboot u-boot-sunxi-with-spl.bin \
                 write 0x42000000 zImage \
                 write 0x43000000 sun5i-r8-chip.dtb \
@@ -120,7 +121,7 @@ In U-Boot, boot:
 bootz 0x42000000 0x50000000 0x43000000
 ```
 
-Format the root partition:
+After logging in to Linux, format the root partition on the NAND and copy the rootfs from the ram disk:
 ```shell
 mtdinfo
 mtdinfo /dev/mtd0
@@ -130,7 +131,8 @@ ubiattach -m 5                           # --> generates /dev/ubi0, also display
 ubimkvol /dev/ubi0 --name rootfs -S 1952 # --> creates /dev/ubi0_0
 mkfs.ubifs /dev/ubi0_0                   # --> doesn't really create ubifs
 mount -t ubifs /dev/ubi0_0 /mnt          # --> ubifs is created as part of mounting
-cp -va /bin /usr /mnt/                   # --> copy stuff from ramdisk to nand
+cp -va /bin /boot /crond.reboot /dev /etc /init /lib /lib32 /linuxrc /media /opt /root /sbin /usr /var /mnt # --> copy stuff from ramdisk to nand
+mkdir /mnt/{mnt,run,proc,sys,tmp}
 reboot
 ```
 NOTE: leaving out the `mkfs.ubifs /dev/ubi0_0` step above seems to work fine as long as only Linux is involved.
