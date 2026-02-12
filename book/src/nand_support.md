@@ -125,14 +125,17 @@ After logging in to Linux, format the root partition on the NAND and copy the ro
 ```shell
 mtdinfo
 mtdinfo /dev/mtd0
-flash_erase /dev/mtd5 0 2035
-ubiformat /dev/mtd5
-ubiattach -m 5                           # --> generates /dev/ubi0, also displays number of LEBs = e.g. 1952
+flash_erase /dev/mtd4 0 2035
+ubiformat -y /dev/mtd4
+ubiattach -m 4                           # --> generates /dev/ubi0, also displays number of LEBs = e.g. 1952
 ubimkvol /dev/ubi0 --name rootfs -S 1952 # --> creates /dev/ubi0_0
 mkfs.ubifs /dev/ubi0_0                   # --> doesn't really create ubifs
 mount -t ubifs /dev/ubi0_0 /mnt          # --> ubifs is created as part of mounting
 cp -va /bin /boot /crond.reboot /dev /etc /init /lib /lib32 /linuxrc /media /opt /root /sbin /usr /var /mnt # --> copy stuff from ramdisk to nand
-mkdir /mnt/{mnt,run,proc,sys,tmp}
+cd /mnt
+mkdir mnt run proc sys tmp
+cd /
+umount /mnt
 reboot
 ```
 NOTE: leaving out the `mkfs.ubifs /dev/ubi0_0` step above seems to work fine as long as only Linux is involved.
@@ -140,12 +143,12 @@ However, we won't be able to mount the ubifs partition from U-Boot without!
 
 In the U-Boot terminal type:
 ```
-bootz 0x42000000 0x500000 0x43000000
+bootz 0x42000000 0x50000000 0x43000000
 ```
 
 In Linux, we now can read from NAND after reboot:
 ```
-ubiattach -m 5                           # --> generates /dev/ubi0
+ubiattach -m 4                           # --> generates /dev/ubi0
 mount -t ubifs /dev/ubi0_0 /mnt          # --> ubifs is created as part of mounting
 find /mnt
 ```
@@ -155,44 +158,25 @@ find /mnt
 The patches from Chris Morgan are for U-Boot v2022.01.
 For simplicity, we are going to switch to that version as it allows us to
 use the unmodified patches.
-So let's create a new Buildroot configuration, in which we tell Buildroot to use
-U-Boot v2022.01, a custom U-Boot config file and define the directory for custom
-U-Boot patches:
+So let's update the Buildroot configuration to use U-Boot v2022.01 and a custom U-Boot config files:
 
 ```shell
-export LINUX_VER=6.6.63
 export UBOOT_VER=2022.01
-cat <<EOF >../buildroot-external/configs/nextthingco_chip_defconfig
-BR2_arm=y
-BR2_cortex_a8=y
-BR2_TOOLCHAIN_EXTERNAL=y
-BR2_LINUX_KERNEL=y
-BR2_LINUX_KERNEL_CUSTOM_VERSION=y
-BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE="${LINUX_VER}"
-BR2_LINUX_KERNEL_PATCH="\${BR2_EXTERNAL_CHIP_PATH}/board/nextthingco/CHIP/linux"
-BR2_LINUX_KERNEL_USE_CUSTOM_CONFIG=y
-BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE="\${BR2_EXTERNAL_CHIP_PATH}/board/nextthingco/CHIP/linux/chip_defconfig"
-BR2_LINUX_KERNEL_DTS_SUPPORT=y
-BR2_LINUX_KERNEL_INTREE_DTS_NAME="allwinner/sun5i-r8-chip"
-BR2_LINUX_KERNEL_DTB_OVERLAY_SUPPORT=y
-BR2_LINUX_KERNEL_INSTALL_TARGET=y
-BR2_PACKAGE_MTD=y
-BR2_PACKAGE_MTD_MKFSUBIFS=y
-BR2_TARGET_ROOTFS_CPIO=y
-BR2_TARGET_ROOTFS_CPIO_GZIP=y
-BR2_TARGET_ROOTFS_CPIO_UIMAGE=y
-BR2_TARGET_UBOOT=y
-BR2_TARGET_UBOOT_BUILD_SYSTEM_KCONFIG=y
-BR2_TARGET_UBOOT_CUSTOM_VERSION=y
-BR2_TARGET_UBOOT_CUSTOM_VERSION_VALUE="${UBOOT_VER}"
-BR2_TARGET_UBOOT_PATCH="\${BR2_EXTERNAL_CHIP_PATH}/board/nextthingco/CHIP/uboot"
+
+sed -i -e '
+s/\(BR2_TARGET_UBOOT_CUSTOM_VERSION_VALUE=\).*/\1\"'$UBOOT_VER'\"/;
+/^$/d;
+/^BR2_TARGET_UBOOT_BOARD_DEFCONFIG=.*/d;
+/^BR2_TARGET_UBOOT_USE_CUSTOM_CONFIG=.*/d;
+/^BR2_TARGET_UBOOT_CUSTOM_CONFIG_FILE=.*/d;
+' ${BR2_EXTERNAL}/configs/nextthingco_chip_defconfig
+
+cat <<EOF >>${BR2_EXTERNAL}/configs/nextthingco_chip_defconfig
 BR2_TARGET_UBOOT_USE_CUSTOM_CONFIG=y
 BR2_TARGET_UBOOT_CUSTOM_CONFIG_FILE="\${BR2_EXTERNAL_CHIP_PATH}/board/nextthingco/CHIP/uboot/CHIP_defconfig"
-BR2_TARGET_UBOOT_NEEDS_DTC=y
-BR2_TARGET_UBOOT_NEEDS_PYLIBFDT=y
-BR2_TARGET_UBOOT_SPL=y
-BR2_TARGET_UBOOT_SPL_NAME="u-boot-sunxi-with-spl.bin spl/sunxi-spl.bin"
 EOF
+ 
+cd ${BR_DIR}
 make nextthingco_chip_defconfig
 ```
 
@@ -204,7 +188,7 @@ wget -c -P ${BR2_EXTERNAL}/board/nextthingco/CHIP/uboot https://raw.githubuserco
 
 Create a `CHIP_defconfig` for U-Boot:
 ```
-cat <<EOF >../buildroot-external/board/nextthingco/CHIP/uboot/CHIP_defconfig
+cat <<EOF >${BR2_EXTERNAL}/board/nextthingco/CHIP/uboot/CHIP_defconfig
 CONFIG_ARM=y
 CONFIG_ARCH_SUNXI=y
 CONFIG_DEFAULT_DEVICE_TREE="sun5i-r8-chip"
@@ -248,88 +232,18 @@ Build new configured U-Boot:
 make uboot-reconfigure
 ```
 
-TODO: In U-Boot:
+Next, boot - note: we are not uploading Linux anymore:
+```shell,ignore
+cd ${BR_DIR}/output/images
+sunxi-fel -v -p uboot u-boot-sunxi-with-spl.bin 
 ```
-=> ubi part rootfs
-=> ubi info
-UBI: MTD device name:            "rootfs"
-UBI: MTD device size:            4088 MiB
-UBI: physical eraseblock size:   2097152 bytes (2048 KiB)
-UBI: logical eraseblock size:    2064384 bytes
-UBI: number of good PEBs:        2036
-UBI: number of bad PEBs:         8
-UBI: smallest flash I/O unit:    16384
-UBI: VID header offset:          16384 (aligned 16384)
-UBI: data offset:                32768
-UBI: max. allowed volumes:       128
-UBI: wear-leveling threshold:    4096
-UBI: number of internal volumes: 1
-UBI: number of user volumes:     1
-UBI: available PEBs:             122
-UBI: total number of reserved PEBs: 1914
-UBI: number of PEBs reserved for bad PEB handling: 72
-UBI: max/mean erase counter: 2/1
-=> ubi info l
-Volume information dump:
-        vol_id          0
-        reserved_pebs   1838
-        alignment       1
-        data_pad        0
-        vol_type        3
-        name_len        6
-        usable_leb_size 2064384
-        used_ebs        1838
-        used_bytes      3794337792
-        last_eb_bytes   2064384
-        corrupted       0
-        upd_marker      0
-        skip_check      0
-        name            rootfs
-Volume information dump:
-        vol_id          2147479551
-        reserved_pebs   2
-        alignment       1
-        data_pad        0
-        vol_type        3
-        name_len        13
-        usable_leb_size 2064384
-        used_ebs        2
-        used_bytes      4128768
-        last_eb_bytes   2
-        corrupted       0
-        upd_marker      0
-        skip_check      0
-        name            layout volume
-=> ubifsmount ubi0:rootfs
-=> ubifsls /
-<DIR>        5024  Thu Jan 01 00:04:02 1970  bin
-<DIR>         608  Thu Jan 01 00:04:05 1970  dev
-<DIR>        1712  Thu Jan 01 00:04:05 1970  etc
-<DIR>        3080  Thu Jan 01 00:04:04 1970  lib
-<DIR>         160  Mon Nov 28 09:21:16 2022  mnt
-<DIR>         160  Mon Nov 28 09:21:16 2022  opt
-<DIR>         160  Sat Dec 03 16:39:02 2022  run
-<DIR>         160  Mon Nov 28 09:21:16 2022  tmp
-<DIR>         160  Mon Nov 28 09:21:16 2022  sys
-<DIR>         672  Thu Jan 01 00:04:05 1970  var
-<DIR>         544  Thu Jan 01 00:04:05 1970  usr
-<DIR>         304  Thu Jan 01 00:04:02 1970  boot
-<DIR>         160  Mon Nov 28 09:21:16 2022  proc
-<DIR>        3736  Thu Jan 01 00:04:05 1970  sbin
-<DIR>         160  Mon Nov 28 09:21:16 2022  root
-<LNK>          11  Thu Jan 01 00:04:04 1970  linuxrc
-<LNK>           3  Thu Jan 01 00:04:04 1970  lib32
-<DIR>         160  Mon Nov 28 09:21:16 2022  media
-=> ubifsls /boot
-            25748  Thu Dec 01 08:52:19 2022  sun5i-r8-chip.dtb
-          5357864  Thu Dec 01 08:52:19 2022  zImage
-=> ubifsload 0x42000000 /boot/zImage
-Loading file '/boot/zImage' to addr 0x42000000...
-Done
-=> ubifsload 0x43000000 /boot/sun5i-r8-chip.dtb
-Loading file '/boot/sun5i-r8-chip.dtb' to addr 0x43000000...
-Done
 
+In our cu-terminal, hit the Any-Key and type the following U-Boot commands:
+```
+ubi part rootfs
+ubifsmount ubi0:rootfs
+ubifsload 0x42000000 /boot/zImage
+ubifsload 0x43000000 /boot/sun5i-r8-chip.dtb
 setenv bootargs root=ubi0_0 rootfstype=ubifs ubi.mtd=4 rw earlyprintk waitroot
 bootz 0x42000000 - 0x43000000
 ```
@@ -337,6 +251,5 @@ bootz 0x42000000 - 0x43000000
 NOTE: for some reason `setenv bootargs root=/dev/ubi0:rootfs rootfstype=ubifs ubi.mtd=4 rw earlyprintk waitroot`
 does not work. That's why we specify `root=ubi0_0`.
 
-OK that's it for now.
-We have demonstrated how we can read and write to the NAND in Linux and U-Boot.
-In the next chapter, we are going to show how to boot C.H.I.P. from NAND.
+Woohoo! We've just booted the Linux kernel and device tree U-Boot loaded from NAND. And Linux mounted its rootfs from NAND!
+In the next chapter, we are going to show how to also write U-Boot onto the NAND such that CHIP can boot without using a USB connection and the sunxi-fel tool.
