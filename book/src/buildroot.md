@@ -14,7 +14,8 @@ Luckily, Buildroot comes with
 [detailed documentation](https://buildroot.org/downloads/manual/manual.html)
  that should cover everything important to know.
 
-Download and unpack the latest "LTS" release:
+First the versions of Linux Kernel, U-Boot and Buildroot are exported as
+enviornment variables, along with some directory definitions:
 
 ```shell
 # set U-Boot version
@@ -36,9 +37,15 @@ export BR_VER=2025.02.10
 export WORK_DIR="${HOME}/Projects/CHIP-BUILDROOT-${BR_VER}"
 export DOWNLOAD_DIR="${WORK_DIR}/download"
 export BR_DIR="${WORK_DIR}/buildroot-${BR_VER}"
+export BR2_EXTERNAL="${WORK_DIR}/buildroot-external"
+```
 
+Now create the working directories and download Buildroot:
+
+```
 mkdir -p ${WORK_DIR}
 mkdir -p ${DOWNLOAD_DIR}
+mkdir -p "${BR2_EXTERNAL}"
 
 echo "# Downloading Buildroot"
 wget -c -P "${DOWNLOAD_DIR}" https://buildroot.org/downloads/buildroot-${BR_VER}.tar.gz
@@ -49,13 +56,8 @@ tar -C "${WORK_DIR}" -x -f "${DOWNLOAD_DIR}/buildroot-${BR_VER}.tar.gz"
 
 We are going to use the 'br2-external' mechanism (c.f. Buildroot documentation
  [Chapter 9.2](https://buildroot.org/downloads/manual/manual.html#outside-br-custom)
- ) in order to keep our
-customizations outside of the official Buildroot tree:
-
-```shell
-export BR2_EXTERNAL="${WORK_DIR}/buildroot-external"
-mkdir -p "${BR2_EXTERNAL}"
-```
+ ) in order to keep our customizations outside of the official Buildroot tree.
+All customizations to Buildroot go into an external directory defined in the `BR2_EXTERNAL` variable.
 
 Create `external.desc`:
 
