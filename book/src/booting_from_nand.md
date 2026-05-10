@@ -1,8 +1,8 @@
 # Booting from NAND
 
 Instead of booting into FEL mode and downloading U-Boot, Linux and the root
-file system every time, we want to write everything to the NAND and boot into
-Linux automatically after powering on C.H.I.P.
+file system every time, we want to load everything from the NAND and boot into
+Linux automatically when we turn on C.H.I.P.
 
 When powered on, the Allwinner R8 SOC on C.H.I.P first executes code in the
 built-in Boot-ROM ([BROM](https://linux-sunxi.org/BROM)).
@@ -18,7 +18,7 @@ If no boot signature is found the BROM code switches to FEL mode.
 If such a boot signature is found the code is loaded from the storage into the
 SRAM and executed.
 The maximum size of this early stage boot code is 0x7e00 bytes (31.5 KiB) on
-Allwinner R8/A12 SOCs.
+Allwinner R8/A13 SOCs.
 
 The limited space in the SRAM is why we need the U-Boot secondary program
 loader (SPL). We've already used U-Boot SPL in the first chapters without
@@ -31,7 +31,7 @@ including the SPL code. The SPL code is downloaded to the SRAM of the SOC
 and executed to initialize the DRAM. C.H.I.P's DRAM configuration is hard-coded
 in the SPL. After initializing the DRAM, the SOC goes back to FEL mode.
 Now U-Boot, Linux, the device tree and the root file filesystem can be
-downloaded to DRAM using the `sunxi-fel` tool.
+downloaded to DRAM by the `sunxi-fel` tool.
 Next, U-Boot is executed and unpacks and starts the Linux kernel.
 
 In this chapter we want to write the SPL code to the first blocks of the NAND
@@ -46,14 +46,14 @@ configuration.
 
 NAND memory device technology is used inside of SD card, SSD's and EMMC chips
 which behave like block devices. These block devices abstract away many of the
-things necessary to operate raw NAND chips as storage devices.
-C.H.I.P does not use SD cards or EMMC chips, but comes with raw NAND.
+things necessary to operate the underlying raw NAND.
+C.H.I.P does not use SD cards or EMMC chips, but comes with a raw NAND chip.
 This requires special treatment in software to implement error correction and
 wear-leveling.
 
-There are two different variants of C.H.I.P out in the wild -
-those with 8 GB SK hynix `H27UCG8T2ETR` NAND modules and those with 4 GB Toshiba
-`TC58TEG5DCLTA00` NAND modules:
+There are two different variants of C.H.I.P out in the wild - those with
+SK hynix `H27UCG8T2ETR` NAND modules and those with Toshiba `TC58TEG5DCLTA00`
+NAND modules:
  
 |                  | SK hynix      | Toshiba         |
 | ---------------- | ------------- | --------------- |
@@ -75,7 +75,8 @@ Both NAND chips can also be operated in an SLC mode, where only one bit per cell
 is stored. Only half their capacity is available for data storage as a result.
 Here we focus on mainline Linux and thus use the NAND in SLC mode.
 
-NAND consists of so called "erase-blocks". Whenever data is written to the NAND
+NAND consists of so called "erase-blocks", which are 4 MB in size for the
+SK hynix and the Toshiba NAND. Whenever data is written to the NAND,
 a whole erase-block is erased and re-written. Even when only a single bit
 has changed, it is necessary to write a full erase-block.
 Erase-blocks wear out with a growing number of write-cycles and can become
@@ -83,20 +84,21 @@ unusable, so-called "bad blocks".
 Wear-leveling algorithms to miminimize wear-out and bad-block handling needs to
 be implemented in software.
 
-Data is read in pages, in our case for both NAND types in chunks 16 KiB at once.
-Thus, each erase block consists of 256 pages.
+Data is read in pages of 16 KB size in our case - same for both NAND types.
+Thus, each erase block consists of 256 pages (4 MB / 16 KB = 256).
 Pages can also be divided in sub-pages, but that is not the case for the NAND
-used on C.H.I.P. For every page there is a so-called out-of-band (OOB) area
-where error-correction-code (ECC) data is stored.
+used on C.H.I.P (page size = subpage size).
+For every page there is a so-called out-of-band (OOB) area where
+error-correction-code (ECC) data is stored.
 So in reality, the SK hynix NAND has a page size of 16384 + 1664 = 18048 bytes 
 of which 16384 are available for data storage. Consequently, the erase blocks
 are really 4620288 bytes in size with 4194304 usable bytes.
-For Toshiba its the real page size is 16384 + 1280 = 17664 bytest and the real
+For Toshiba its the real page size is 16384 + 1280 = 17664 bytes and the real
 erase block size is 4521984 bytes.
 This becomes important when we want to read from raw NAND and prepare raw NAND
 images for flashing.
 
-As already mentioned, the SK hynix and the Toshiba NAND used on C.H.I.P differ
+As shown above, the SK hynix and the Toshiba NAND used on C.H.I.P differ
 in their capacity and their OOB size.
 In the `CHIP_defconfig` for U-Boot in the previous chapter we have defined OOB
 size matching the SK hynix NAND module `CONFIG_SYS_NAND_OOBSIZE=0x680` - as
@@ -128,10 +130,10 @@ make uboot-reconfigure
 The BROM code only has a very basic NAND driver implementation that does not
 know about the parameters of the actual NAND chip. It tries to read the SPL code
 from page 0 on block 0 of the NAND. If it does not find valid boot code there
-it continues at page 0x40, page 0x80, and page 0xc0 on erase block 0.
-Then it continues with pages 0x100, 0x140, 0x180 and 0x1c0 on erase block 1.
-For maximum robustness in total a copies of the SPL code can be writte to the
-NAND. 
+it continues at page 64, page 128, and page 192 on erase block 0.
+Then it continues with pages 256, 320, 384 and 448 on erase block 1.
+For maximum robustness in total eight copies of the SPL code can be writte to
+the NAND. 
 
 As the BROM code does not know about the size of the NAND for each page various
 formats are probed - more details are explained in the
@@ -139,27 +141,51 @@ formats are probed - more details are explained in the
 wiki.
 
 The `sunxi-nand-image-builder` tool takes the `sunxi-spl.bin` as input and
-writes an output file including error correction codes that can be flashed onto
-the raw NAND and is recognized by the BROM code.
+writes an output file including scrambling and error correction codes that can be
+flashed onto the raw NAND and is recognized by the BROM code.
 Various formats can be selected - the most robust one only using 1024 bytes per
 page plus 64 bit for error correction.
 
-Let's create a BROM image for sk Hynix NAND:
+Let's add the sunxi-tools (including the `sunxi-nand-image-builder`) to the
+Buildroot host tools and build them:
+```
+cat <<EOF >>"${BR2_EXTERNAL}"/configs/nextthingco_chip_defconfig
+BR2_PACKAGE_HOST_SUNXI_TOOLS=y
+EOF
+
+cd ${BR_DIR}
+make nextthingco_chip_defconfig
+make host-sunxi-tools
+```
+
+Now we can create a BROM image for sk Hynix NAND:
 ```
 cd ${BR_DIR}/output/images
 ${BR_DIR}/output/host/bin/sunxi-nand-image-builder -p 16384 -o 1280 -e 0x400000 -s -b -u 1024 -c 64/1024 sunxi-spl.bin sunxi-spl.bin.nand
 ```
-This blows up the 16384 bytes `sunxi-spl.bin` into a 282624 bytes `sunxi-spl.bin.nand` file. 
+This blows up the 16384 bytes `sunxi-spl.bin` into a 282624 bytes
+`sunxi-spl.bin.nand` file. That corresponds to 282624 / (16384 + 1280) = 16
+raw nand pages. 
 
-in a socalled "post-image"
-script in Buildroot. The post-image script is executed after U-Boot, Linux
-and the rootfs have been built.
+We need to prepare an image for a full erase block, so we need to add 48 pages
+padding and then repeat that three times:
 
-Let's add the sunxi-tools (including the `sunxi-nand-image-builder`) to the
-Buildroot host tools and also declare the post image script:
+```
+| Page |  0  | 16  | 32  | 48  |
+| ---- | --- | --- | --- | --- |
+|   0  | SPL | PAD | PAD | PAD |
+|  64  | SPL | PAD | PAD | PAD |
+| 128  | SPL | PAD | PAD | PAD |
+| 192  | SPL | PAD | PAD | PAD |
+```
+
+in a socalled "post-image" script in Buildroot.
+The post-image script is executed after U-Boot, Linux and the rootfs have been
+built.
+
+We have to declare the post image script in our Buildroot configuration:
 ```
 cat <<EOF >>"${BR2_EXTERNAL}"/configs/nextthingco_chip_defconfig
-BR2_PACKAGE_HOST_SUNXI_TOOLS=y
 BR2_ROOTFS_POST_IMAGE_SCRIPT="\${BR2_EXTERNAL_CHIP_PATH}/board/nextthingco/CHIP/post-image.sh"
 EOF
 
@@ -208,23 +234,30 @@ OOB_SIZE="\$(sed -n -e 's/CONFIG_SYS_NAND_OOBSIZE=\(.*\)/\1/p' \$UBOOT_CFG)"
 
 INPUT_SPL="\${BINARIES_DIR}/sunxi-spl.bin"
 OUTPUT_SPL="\${BINARIES_DIR}/sunxi-spl.bin.ecc"
-OUTPUT_IMAGE="\${BINARIES_DIR}/sunxi-spl.bin.nan"
+OUTPUT_IMAGE="\${BINARIES_DIR}/sunxi-spl.bin.nand"
 
-\${HOST_DIR}/bin/sunxi-nand-image-builder -s -b -c 64/1024 -u 1024 -e \${BLOCK_SIZE} -p \${PAGE_SIZE} -o \${OOB_SIZE} \${INPUT_SPL} \${OUTPUT_SPL}
-
-
-OUTPUT_BLOCK_SIZE=\$(( BLOCK_SIZE/PAGE_SIZE * (PAGE_SIZE+OOB_SIZE) ))
-
-dd if=/dev/urandom of=\${OUTPUT_IMAGE} bs=\$((PAGE_SIZE+OOB_SIZE))
+rm -rf "\${OUTPUT_IMAGE}"
+for i in \$(seq 1 16)
+do
+        \${HOST_DIR}/bin/sunxi-nand-image-builder -s -b -c 64/1024 -u 1024 -e \${BLOCK_SIZE} -p \${PAGE_SIZE} -o \${OOB_SIZE} \${INPUT_SPL} \${OUTPUT_SPL}
+        cat "\${OUTPUT_SPL}" >> "\${OUTPUT_IMAGE}"
+done
 
 EOF
 chmod a+x ${BR2_EXTERNAL}/board/nextthingco/CHIP/post-image.sh
 ```
-
-As described in 
-,
-the A13/R8 BROM code tries to read the SPL code from page 0, page 64, page 128,
-... until it finds a valid signature.
+NOTE: instead of padding random data we simply generate BROM image 16 times.
+Each time the output is different, as the `sunxi-nand-image-builder` mixes in
+random data for robustnes on the NAND. So effectively the post image script
+creates a full erase block with the following content:
+```
+| Page |  0  | 16  | 32  | 48  |
+| ---- | --- | --- | --- | --- |
+|   0  | SPL | SPL | SPL | SPL |
+|  64  | SPL | SPL | SPL | SPL |
+| 128  | SPL | SPL | SPL | SPL |
+| 192  | SPL | SPL | SPL | SPL |
+```
 
 
 ### Write U-Boot SPL to the NAND
