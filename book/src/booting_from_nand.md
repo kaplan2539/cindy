@@ -259,14 +259,92 @@ creates a full erase block with the following content:
 | 192  | SPL | SPL | SPL | SPL |
 ```
 
+The resulting `${BR_DIR}/output/images/sunxi-spl.bin.nand` can now be flashed
+to the first two erase blocks of the NAND.
 
-### Write U-Boot SPL to the NAND
-- repeat SPL code multiple times, special format
-- we need to 
-Two partitions: SPL and SPL-backup
 
-### Write U-Boot to the NAND
- - the U-Boot image does not  
+### Full U-Boot image
+
+The SPL image is created using the `sunxi-nand-image-builder` which implements
+randomization and ECC necessary to achieve the greates possible reliablity.
+This is not necessary for the full U-Boot image as the NAND controller of the
+R8 / A13 SOC is taking care of that when writing the image.
+We can simply use the `dd` command to create an image:
+```
+dd if=${BR_DIR}/output/image/u-boot.bin of=${BR_DIR}/output/image/u-boot.bin.nand bs=${BLOCK_SIZE} conv=sync
+```
+Note, the resulting `u-boot-bin.nand` image is excactly 4 MB - the size of the
+NAND erase blocks. 
+
+For future use, also add this to our `post-image.sh` script:
+```
+# Read NAND parameters from the U-Boot configuration
+cat <<EOF >>${BR2_EXTERNAL}/board/nextthingco/CHIP/post-image.sh
+INPUT_IMAGE="\${BINARIES_DIR}/u-boot.bin"
+OUTPUT_IMAGE="\${BINARIES_DIR}/u-boot.bin.nand"
+dd if="\${INPUT_IMAGE}" of="\${OUTPUT_IMAGE}" bs=\$(printf "%d" \${BLOCK_SIZE}) conv=sync
+EOF
+``` 
+
+## NOTES:
+
+simple `boot.sh`
+```
+!/bin/bash
+
+D=${BR_DIR}/output/images
+
+sunxi-fel -v -p uboot ${D}/u-boot-sunxi-with-spl.bin \
+                write 0x42000000 ${D}/zImage \
+                write 0x43000000 ${D}/sun5i-r8-chip.dtb \
+                write 0x43400000 ${D}/sunxi-spl.bin.nand \
+                write 0x43800000 ${D}/u-boot.bin.nand \
+                write 0x50000000 ${D}/rootfs.cpio.uboot
+```
+
+U-Boot, write SPL and U-Boot to NAND, then boot into Linux:
+```
+nand erase.chip
+nand write.raw.noverify 0x43400000 0x0 0x100
+nand write.raw.noverify 0x43400000 0x400000 0x100
+nand write 0x43800000 0x800000 0x400000
+bootz 0x42000000 0x50000000 0x43000000
+```
+
+In Linux, format UBIFS, copy rootfs:
+```
+mtdinfo
+mtdinfo /dev/mtd0
+flash_erase /dev/mtd4 0 2035
+ubiformat -y /dev/mtd4
+ubiattach -m 4                           # --> generates /dev/ubi0, also displays number of LEBs = e.g. 1952
+ubimkvol /dev/ubi0 --name rootfs -S 1952 # --> creates /dev/ubi0_0
+mkfs.ubifs /dev/ubi0_0                   # --> doesn't really create ubifs
+mount -t ubifs /dev/ubi0_0 /mnt          # --> ubifs is created as part of mounting
+cp -va /bin /boot /crond.reboot /dev /etc /init /lib /lib32 /linuxrc /media /opt /root /sbin /usr /var /mnt # --> copy stuff from ramdisk to nand
+cd /mnt
+mkdir mnt run proc sys tmp
+cd /
+umount /mnt
+poweroff
+```
+
+Remove FEL pin, poweron, interrupt U-Boot auto-boot, then in U-Boot boot from NAND:
+```
+ubi part rootfs
+ubifsmount ubi0:rootfs
+ubifsload 0x42000000 /boot/zImage
+ubifsload 0x43000000 /boot/sun5i-r8-chip.dtb
+setenv bootargs root=ubi0_0 rootfstype=ubifs ubi.mtd=4 rw earlyprintk waitroot
+bootz 0x42000000 - 0x43000000
+```
+
+TODO:
+ - Either: create U-Boot script partition on NAND  with U-BOOT script to auto boot
+ - Or, Hardcode U-Boot steps in U-Boot somehow
+ - Create flash.sh that allows to flash what comes out of buildroot:
+    - we probably need to customize /init in the rootfs to do the ubi-formatting above...
+
 
 ### Write Rootfs to the NAND
  - enable building of ubi/ubifs images in Buildroot:
