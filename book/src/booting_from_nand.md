@@ -339,6 +339,65 @@ setenv bootargs root=ubi0_0 rootfstype=ubifs ubi.mtd=4 rw earlyprintk waitroot
 bootz 0x42000000 - 0x43000000
 ```
 
+
+## Create U-Boot bootscript
+Enable the generatin of a U-Boot boot script in the Buildroot configuration:
+```
+cat <<EOF >>"${BR2_EXTERNAL}"/configs/nextthingco_chip_defconfig
+BR2_PACKAGE_HOST_UBOOT_TOOLS_BOOT_SCRIPT=y
+BR2_PACKAGE_HOST_UBOOT_TOOLS_BOOT_SCRIPT_SOURCE="\${BR2_EXTERNAL_CHIP_PATH}/board/nextthingco/CHIP/uboot/boot.scr.txt"
+EOF
+```
+
+Update config and re-build host-uboot-tools to generate `output/images/boot.scr`:
+```
+make nextthingco_chip_defconfig
+make host-uboot-tools-rebuild
+```
+
+### direnv
+Create .envrc:
+```
+cat <<EOF >.envrc 
+# set U-Boot version
+export UBOOT_VER=2022.01
+
+# Retrieve latest Linux version
+export LINUX_VER=6.12.70
+
+# set Buildroot version
+export BR_VER=2025.02.10
+
+# define working dir - use absolute paths!
+export WORK_DIR="\${PWD}"
+export DOWNLOAD_DIR="\${WORK_DIR}/download"
+export BR_DIR="\${WORK_DIR}/buildroot-${BR_VER}"
+export BR2_EXTERNA="\${WORK_DIR}/buildroot-external"
+
+export PATH=\$PATH:${PWD}/bin
+EOF
+```
+
+Create fel-boot:
+```
+cat <<EOF >${WORKD_DIR}/bin/fel-boot
+#!/bin/bash
+
+D=${BR_DIR}/output/images
+
+sunxi-fel -v -p uboot ${D}/u-boot-sunxi-with-spl.bin \
+                write 0x42000000 ${D}/zImage \
+                write 0x43000000 ${D}/sun5i-r8-chip.dtb \
+                write 0x43100000 ${D}/boot.scr \
+                write 0x43400000 ${D}/sunxi-spl.bin.nand \
+                write 0x43800000 ${D}/u-boot.bin.nand \
+                write 0x50000000 ${D}/rootfs.cpio.uboot
+EOF
+```
+Now, U-Boot auto-boot automatically detects the script uploaded to 0x43100000 and executes it!
+
+
+
 TODO:
  - Either: create U-Boot script partition on NAND  with U-BOOT script to auto boot
  - Or, Hardcode U-Boot steps in U-Boot somehow
