@@ -396,7 +396,20 @@ EOF
 ```
 Now, U-Boot auto-boot automatically detects the script uploaded to 0x43100000 and executes it!
 
-
+Define U-Boot BOOT_COMMAND:
+```
+CONFIG_AUTOBOOT=y
+CONFIG_BOOTDELAY=2
+CONFIG_USE_BOOTCOMMAND=y
+CONFIG_BOOTCOMMAND="\
+if test -n ${fel_booted} && test -n ${fel_scriptaddr}; then \
+    source ${fel_scriptaddr}; \
+fi; \
+ubi part rootfs; ubifsmount ubi0:rootfs; ubifsload 0x42000000 /boot/zImage; ubifsload 0x43000000 /boot/sun5i-r8-chip.dtb; setenv bootargs root=ubi0_0 rootfstype=ubifs ubi.mtd=4 rw earlyprintk waitroot; bootz 0x42000000 - 0x43000000"
+CONFIG_USE_PREBOOT=y
+CONFIG_PREBOOT="usb start"
+CONFIG_DEFAULT_FDT_FILE=""
+```
 
 TODO:
  - Either: create U-Boot script partition on NAND  with U-BOOT script to auto boot
