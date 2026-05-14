@@ -412,14 +412,31 @@ CONFIG_DEFAULT_FDT_FILE=""
 ```
 
 TODO:
- - Either: create U-Boot script partition on NAND  with U-BOOT script to auto boot
- - Or, Hardcode U-Boot steps in U-Boot somehow
- - Create flash.sh that allows to flash what comes out of buildroot:
-    - we probably need to customize /init in the rootfs to do the ubi-formatting above...
+ 1.) add install.sh to rootfs.tar.gz: 
+```
+mtdinfo
+mtdinfo /dev/mtd0
+flash_erase /dev/mtd4 0 2035
+ubiformat -y /dev/mtd4
+ubiattach -m 4                           # --> generates /dev/ubi0, also displays number of LEBs = e.g. 1952
+ubimkvol /dev/ubi0 --name rootfs -S 1952 # --> creates /dev/ubi0_0
+mkfs.ubifs /dev/ubi0_0                   # --> doesn't really create ubifs
+mount -t ubifs /dev/ubi0_0 /mnt          # --> ubifs is created as part of mounting
+cp -va /bin /boot /crond.reboot /dev /etc /init /lib /lib32 /linuxrc /media /opt /root /sbin /usr /var /mnt # --> copy stuff from ramdisk to nand
+cd /mnt
+mkdir mnt run proc sys tmp
+cd /
+umount /mnt
+poweroff
+```
 
+ 2.) modify boot.scr / better create flash.sh:
+```
+nand erase.chip
+nand write.raw.noverify 0x43400000 0x0 0x100
+nand write.raw.noverify 0x43400000 0x400000 0x100
+nand write 0x43800000 0x800000 0x400000
+setenv bootargs init=/install.sh
+bootz 0x42000000 0x50000000 0x43000000
+```
 
-### Write Rootfs to the NAND
- - enable building of ubi/ubifs images in Buildroot:
- - the ubifs/ubi images are not depending on the OOB size of the NAND chip used, i.e. we ca
-
-### script to flash whatever Buildroot spits out
