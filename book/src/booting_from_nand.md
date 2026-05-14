@@ -439,4 +439,5 @@ nand write 0x43800000 0x800000 0x400000
 setenv bootargs init=/install.sh
 bootz 0x42000000 0x50000000 0x43000000
 ```
+FINDOUT: does init=install.sh disable password / login?
 
