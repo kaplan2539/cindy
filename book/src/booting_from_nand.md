@@ -10,7 +10,7 @@ At this time the 512 MB DRAM on C.H.I.P are not initialized and the R8 SOC can
 only work with the internal 48 KiB SRAM.
 The BROM code checks if the FEL pin is low (i.e. connected to GND) and if so
 goes to the FEL USB boot mode. With the R8 in FEL USB mode, we can interact
-with the SOC via the `sunxi-fel` tool as described various time in the previous
+with the SOC via the `sunxi-fel` tool as described various times in the previous
 chapters.
 If the FEL pin is high, the BROM code starts checking the various storage
 options (e.g. C.H.I.P's NAND) for a valid boot signature at the right location.
@@ -24,7 +24,7 @@ The limited space in the SRAM is why we need the U-Boot secondary program
 loader (SPL). We've already used U-Boot SPL in the first chapters without
 explaining anything about it.
 Without going into detail, the following paragraph tries to gives a very high
-level and probably too simplified overview.
+level (and probably too simplified) overview.
 
 We used the `sunxi-fel uboot` command that expects a binary containing U-Boot
 including the SPL code. The SPL code is downloaded to the SRAM of the SOC
@@ -68,7 +68,7 @@ NAND modules:
 
 Both chips are Multi-level cell "MLC" NAND chips. Compared to Single-level cell
 "SLC" NAND, they store multiple bits per cell resulting in a higher data density.
-Unfortunately that comes at a price - they are more sensitive to errors and have
+Unfortunately, that comes at a price - they are more sensitive to errors and have
 a lower endurance. MLC NAND is not supported by the UBI/UBIFS layers in mainline
 Linux. However, the original NextThingCo Linux 4.4 branches supported MLC NAND.
 Both NAND chips can also be operated in an SLC mode, where only one bit per cell
@@ -85,12 +85,12 @@ Wear-leveling algorithms to miminimize wear-out and bad-block handling needs to
 be implemented in software.
 
 Data is read in pages of 16 KB size in our case - same for both NAND types.
-Thus, each erase block consists of 256 pages (4 MB / 16 KB = 256).
+Each erase block consists of 256 pages (4 MB / 16 KB = 256).
 Pages can also be divided in sub-pages, but that is not the case for the NAND
 used on C.H.I.P (page size = subpage size).
 For every page there is a so-called out-of-band (OOB) area where
 error-correction-code (ECC) data is stored.
-So in reality, the SK hynix NAND has a page size of 16384 + 1664 = 18048 bytes 
+So, in reality the SK hynix NAND has a page size of 16384 + 1664 = 18048 bytes
 of which 16384 are available for data storage. Consequently, the erase blocks
 are really 4620288 bytes in size with 4194304 usable bytes.
 For Toshiba its the real page size is 16384 + 1280 = 17664 bytes and the real
@@ -132,10 +132,10 @@ know about the parameters of the actual NAND chip. It tries to read the SPL code
 from page 0 on block 0 of the NAND. If it does not find valid boot code there
 it continues at page 64, page 128, and page 192 on erase block 0.
 Then it continues with pages 256, 320, 384 and 448 on erase block 1.
-For maximum robustness in total eight copies of the SPL code can be writte to
+For maximum robustness, in total eight copies of the SPL code can be written to
 the NAND. 
 
-As the BROM code does not know about the size of the NAND for each page various
+As the BROM code does not know about the size of the NAND, for each page various
 formats are probed - more details are explained in the
 [linux-sunxi.org](https://linux-sunxi.org/NAND#More_information_on_BROM_NAND)
 wiki.
@@ -286,12 +286,11 @@ dd if="\${INPUT_IMAGE}" of="\${OUTPUT_IMAGE}" bs=\$(printf "%d" \${BLOCK_SIZE}) 
 EOF
 ``` 
 
-## NOTES:
+### Write SPL, U-Boot and Linux rootfs to the NAND
 
-simple `boot.sh`
+Type the following to download SPL, U-Boot, the Linux kernel, our DTB, the NAND
+images and the rootfs to C.H.I.P's DRAM and boot:
 ```
-!/bin/bash
-
 D=${BR_DIR}/output/images
 
 sunxi-fel -v -p uboot ${D}/u-boot-sunxi-with-spl.bin \
@@ -302,7 +301,9 @@ sunxi-fel -v -p uboot ${D}/u-boot-sunxi-with-spl.bin \
                 write 0x50000000 ${D}/rootfs.cpio.uboot
 ```
 
-U-Boot, write SPL and U-Boot to NAND, then boot into Linux:
+Via UART, interrupt U-Boot's auto-boot mechanism, and type the following commands
+in order to write the SPL and U-Boot images to the NAND and then boot into to the
+Linux Ramdisk: 
 ```
 nand erase.chip
 nand write.raw.noverify 0x43400000 0x0 0x100
@@ -311,7 +312,7 @@ nand write 0x43800000 0x800000 0x400000
 bootz 0x42000000 0x50000000 0x43000000
 ```
 
-In Linux, format UBIFS, copy rootfs:
+In Linux, run these commands to create the UBIFS on the NAND rootfs partition and then copy the rootfs from the ramdisk to the NAND.
 ```
 mtdinfo
 mtdinfo /dev/mtd0
@@ -329,7 +330,8 @@ umount /mnt
 poweroff
 ```
 
-Remove FEL pin, poweron, interrupt U-Boot auto-boot, then in U-Boot boot from NAND:
+Now, remove FEL pin and power on C.H.I.P. Then interrupt U-Boot auto-boot, and
+type the following to boot from NAND:
 ```
 ubi part rootfs
 ubifsmount ubi0:rootfs
@@ -339,105 +341,12 @@ setenv bootargs root=ubi0_0 rootfstype=ubifs ubi.mtd=4 rw earlyprintk waitroot
 bootz 0x42000000 - 0x43000000
 ```
 
+This still requires manual intervention on the U-Boot command line.
 
-## Create U-Boot bootscript
-Enable the generatin of a U-Boot boot script in the Buildroot configuration:
-```
-cat <<EOF >>"${BR2_EXTERNAL}"/configs/nextthingco_chip_defconfig
-BR2_PACKAGE_HOST_UBOOT_TOOLS_BOOT_SCRIPT=y
-BR2_PACKAGE_HOST_UBOOT_TOOLS_BOOT_SCRIPT_SOURCE="\${BR2_EXTERNAL_CHIP_PATH}/board/nextthingco/CHIP/uboot/boot.scr.txt"
-EOF
-```
+But: *we've booted without using the `sunxi-fel` tool!*
 
-Update config and re-build host-uboot-tools to generate `output/images/boot.scr`:
-```
-make nextthingco_chip_defconfig
-make host-uboot-tools-rebuild
-```
-
-### direnv
-Create .envrc:
-```
-cat <<EOF >.envrc 
-# set U-Boot version
-export UBOOT_VER=2022.01
-
-# Retrieve latest Linux version
-export LINUX_VER=6.12.70
-
-# set Buildroot version
-export BR_VER=2025.02.10
-
-# define working dir - use absolute paths!
-export WORK_DIR="\${PWD}"
-export DOWNLOAD_DIR="\${WORK_DIR}/download"
-export BR_DIR="\${WORK_DIR}/buildroot-${BR_VER}"
-export BR2_EXTERNA="\${WORK_DIR}/buildroot-external"
-
-export PATH=\$PATH:${PWD}/bin
-EOF
-```
-
-Create fel-boot:
-```
-cat <<EOF >${WORKD_DIR}/bin/fel-boot
-#!/bin/bash
-
-D=${BR_DIR}/output/images
-
-sunxi-fel -v -p uboot ${D}/u-boot-sunxi-with-spl.bin \
-                write 0x42000000 ${D}/zImage \
-                write 0x43000000 ${D}/sun5i-r8-chip.dtb \
-                write 0x43100000 ${D}/boot.scr \
-                write 0x43400000 ${D}/sunxi-spl.bin.nand \
-                write 0x43800000 ${D}/u-boot.bin.nand \
-                write 0x50000000 ${D}/rootfs.cpio.uboot
-EOF
-```
-Now, U-Boot auto-boot automatically detects the script uploaded to 0x43100000 and executes it!
-
-Define U-Boot BOOT_COMMAND:
-```
-CONFIG_AUTOBOOT=y
-CONFIG_BOOTDELAY=2
-CONFIG_USE_BOOTCOMMAND=y
-CONFIG_BOOTCOMMAND="\
-if test -n ${fel_booted} && test -n ${fel_scriptaddr}; then \
-    source ${fel_scriptaddr}; \
-fi; \
-ubi part rootfs; ubifsmount ubi0:rootfs; ubifsload 0x42000000 /boot/zImage; ubifsload 0x43000000 /boot/sun5i-r8-chip.dtb; setenv bootargs root=ubi0_0 rootfstype=ubifs ubi.mtd=4 rw earlyprintk waitroot; bootz 0x42000000 - 0x43000000"
-CONFIG_USE_PREBOOT=y
-CONFIG_PREBOOT="usb start"
-CONFIG_DEFAULT_FDT_FILE=""
-```
-
-TODO:
- 1.) add install.sh to rootfs.tar.gz: 
-```
-mtdinfo
-mtdinfo /dev/mtd0
-flash_erase /dev/mtd4 0 2035
-ubiformat -y /dev/mtd4
-ubiattach -m 4                           # --> generates /dev/ubi0, also displays number of LEBs = e.g. 1952
-ubimkvol /dev/ubi0 --name rootfs -S 1952 # --> creates /dev/ubi0_0
-mkfs.ubifs /dev/ubi0_0                   # --> doesn't really create ubifs
-mount -t ubifs /dev/ubi0_0 /mnt          # --> ubifs is created as part of mounting
-cp -va /bin /boot /crond.reboot /dev /etc /init /lib /lib32 /linuxrc /media /opt /root /sbin /usr /var /mnt # --> copy stuff from ramdisk to nand
-cd /mnt
-mkdir mnt run proc sys tmp
-cd /
-umount /mnt
-poweroff
-```
-
- 2.) modify boot.scr / better create flash.sh:
-```
-nand erase.chip
-nand write.raw.noverify 0x43400000 0x0 0x100
-nand write.raw.noverify 0x43400000 0x400000 0x100
-nand write 0x43800000 0x800000 0x400000
-setenv bootargs init=/install.sh
-bootz 0x42000000 0x50000000 0x43000000
-```
-FINDOUT: does init=install.sh disable password / login?
+You have probably still connected C.H.I.P to your work station via USB to power it.
+Try using a power supply or a battery instead - your C.H.I.P is flashed now.
+The next chapter shows how to automate the flashing and how to boot C.H.I.P
+without typing commands manually in U-Boot via UART.
 
