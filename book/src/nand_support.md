@@ -20,7 +20,9 @@ mode.
 ### Linux Configuration
 
 So far, we have used the `sunxi_defconfig` in the Linux tree.
-Now, we are creating a Linux kernel config frament to enable the Memory Technology Device (MTD) drivers, support for raw NAND and the Allwinner NAND controller as well as UBI/UBIFS. Type:
+Now, we are creating a Linux kernel config fragment to enable the Memory
+Technology Device (MTD) drivers, support for raw NAND and the Allwinner NAND
+controller as well as UBI/UBIFS. Type:
 
 ```
 cat <<EOF >"${BR2_EXTERNAL}"/board/nextthingco/CHIP/linux/nand.cfg
@@ -158,22 +160,18 @@ find /mnt
 The patches from Chris Morgan are for U-Boot v2022.01.
 For simplicity, we are going to switch to that version as it allows us to
 use the unmodified patches.
-So let's update the Buildroot configuration to use U-Boot v2022.01 and a custom U-Boot config files:
+So let's update the Buildroot configuration to use U-Boot v2022.01 and also add a
+`nand.cfg` configuration fragment for U-Boot:
 
 ```shell
 export UBOOT_VER=2022.01
 
 sed -i -e '
 s/\(BR2_TARGET_UBOOT_CUSTOM_VERSION_VALUE=\).*/\1\"'$UBOOT_VER'\"/;
-/^$/d;
-/^BR2_TARGET_UBOOT_BOARD_DEFCONFIG=.*/d;
-/^BR2_TARGET_UBOOT_USE_CUSTOM_CONFIG=.*/d;
-/^BR2_TARGET_UBOOT_CUSTOM_CONFIG_FILE=.*/d;
 ' ${BR2_EXTERNAL}/configs/nextthingco_chip_defconfig
 
 cat <<EOF >>${BR2_EXTERNAL}/configs/nextthingco_chip_defconfig
-BR2_TARGET_UBOOT_USE_CUSTOM_CONFIG=y
-BR2_TARGET_UBOOT_CUSTOM_CONFIG_FILE="\${BR2_EXTERNAL_CHIP_PATH}/board/nextthingco/CHIP/uboot/CHIP_defconfig"
+BR2_TARGET_UBOOT_CONFIG_FRAGMENT_FILES="\${BR2_EXTERNAL}/board/nextthingco/CHIP/uboot/nand.cfg"
 EOF
  
 cd ${BR_DIR}
@@ -186,28 +184,12 @@ wget -c -P ${BR2_EXTERNAL}/board/nextthingco/CHIP/uboot https://raw.githubuserco
 wget -c -P ${BR2_EXTERNAL}/board/nextthingco/CHIP/uboot https://raw.githubusercontent.com/macromorgan/chip-debroot/main/u-boot_files/0001-sunxi-nand-Undo-removal-of-DMA-specific-code-that-br.patch
 ```
 
-Create a `CHIP_defconfig` for U-Boot:
+Create the `nand.cfg` for U-Boot:
 ```
-cat <<EOF >${BR2_EXTERNAL}/board/nextthingco/CHIP/uboot/CHIP_defconfig
-CONFIG_ARM=y
-CONFIG_ARCH_SUNXI=y
-CONFIG_DEFAULT_DEVICE_TREE="sun5i-r8-chip"
-CONFIG_SPL=y
-CONFIG_MACH_SUN5I=y
-CONFIG_DRAM_TIMINGS_DDR3_800E_1066G_1333J=y
-CONFIG_USB0_VBUS_PIN="PB10"
-CONFIG_VIDEO_COMPOSITE=y
-CONFIG_CHIP_DIP_SCAN=y
-CONFIG_SPL_I2C=y
-CONFIG_CMD_DFU=y
+cat <<EOF >${BR2_EXTERNAL}/board/nextthingco/CHIP/uboot/nand.cfg
 CONFIG_CMD_MTDPARTS=y
 CONFIG_MTDIDS_DEFAULT="nand0=nand0"
 CONFIG_MTDPARTS_DEFAULT="nand0:0x400000(SPL),0x400000(SPL.backup),0x400000(U-Boot),0x400000(U-Boot.backup),-(rootfs)slc"
-CONFIG_DFU_RAM=y
-CONFIG_SYS_I2C_MVTWSI=y
-CONFIG_SYS_I2C_SLAVE=0x7f
-CONFIG_SYS_I2C_SPEED=400000
-# CONFIG_MMC is not set
 CONFIG_MTD=y
 CONFIG_DM_MTD=y
 CONFIG_MTD_RAW_NAND=y
@@ -218,12 +200,6 @@ CONFIG_SYS_NAND_PAGE_SIZE=0x4000
 CONFIG_SYS_NAND_OOBSIZE=0x680
 CONFIG_SYS_NAND_U_BOOT_OFFS_REDUND=0xc00000
 CONFIG_UBI_SILENCE_MSG=y
-CONFIG_AXP_ALDO3_VOLT=3300
-CONFIG_AXP_ALDO4_VOLT=3300
-CONFIG_CONS_INDEX=2
-CONFIG_USB_EHCI_HCD=y
-CONFIG_USB_OHCI_HCD=y
-CONFIG_USB_MUSB_GADGET=y
 EOF
 ```
 

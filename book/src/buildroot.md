@@ -15,7 +15,7 @@ Luckily, Buildroot comes with
  that should cover everything important to know.
 
 First the versions of Linux Kernel, U-Boot and Buildroot are exported as
-enviornment variables, along with some directory definitions:
+environment variables, along with some directory definitions:
 
 ```shell
 # set U-Boot version
