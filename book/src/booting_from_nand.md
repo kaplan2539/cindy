@@ -109,11 +109,11 @@ But as we want the U-Boot SPL to load the rest of U-Boot from the NAND we now
 have to define the correct OOB size.
 
 So, when building the U-Boot SPL for a the Toshiba NAND, we need update the
-U-Boot defconfig:
+U-Boot `nand.cfg` configuration fragment:
 
 ```
 sed -i -e 's/\(CONFIG_SYS_NAND_OOBSIZE\)=.*/\1=0x500/' \
-${BR2_EXTERNAL}/board/nextthingco/CHIP/uboot/CHIP_defconfig
+${BR2_EXTERNAL}/board/nextthingco/CHIP/uboot/nand.cfg
 cd ${BR_DIR}
 make uboot-reconfigure
 ```
@@ -121,7 +121,7 @@ make uboot-reconfigure
 And when we want to switch back to SK hynix NAND do this:
 ```
 sed -i -e 's/\(CONFIG_SYS_NAND_OOBSIZE\)=.*/\1=0x680/' \
-${BR2_EXTERNAL}/board/nextthingco/CHIP/uboot/CHIP_defconfig
+${BR2_EXTERNAL}/board/nextthingco/CHIP/uboot/nand.cfg
 make uboot-reconfigure
 ``` 
 
