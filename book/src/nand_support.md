@@ -188,6 +188,8 @@ Create the `nand.cfg` for U-Boot:
 ```
 cat <<EOF >${BR2_EXTERNAL}/board/nextthingco/CHIP/uboot/nand.cfg
 CONFIG_CMD_MTDPARTS=y
+CONFIG_CMD_UBI=y
+CONFIG_CMD_UBIFS=y
 CONFIG_MTDIDS_DEFAULT="nand0=nand0"
 CONFIG_MTDPARTS_DEFAULT="nand0:0x400000(SPL),0x400000(SPL.backup),0x400000(U-Boot),0x400000(U-Boot.backup),-(rootfs)slc"
 CONFIG_MTD=y
