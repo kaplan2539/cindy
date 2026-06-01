@@ -179,11 +179,10 @@ padding and then repeat that three times:
 | 192  | SPL | PAD | PAD | PAD |
 ```
 
-in a socalled "post-image" script in Buildroot.
+Buildroot supports a so-called post-image script.
 The post-image script is executed after U-Boot, Linux and the rootfs have been
 built.
-
-We have to declare the post image script in our Buildroot configuration:
+Let's add a `post-image.sh` script to our Buildroot configuration:
 ```
 cat <<EOF >>"${BR2_EXTERNAL}"/configs/nextthingco_chip_defconfig
 BR2_ROOTFS_POST_IMAGE_SCRIPT="\${BR2_EXTERNAL_CHIP_PATH}/board/nextthingco/CHIP/post-image.sh"
@@ -193,8 +192,9 @@ cd ${BR_DIR}
 make nextthingco_chip_defconfig
 ```
 
-Create that `post-image.sh` script which will be executed by Buildroot after
-it has created the U-Boot, Linux and root filesystem images:
+The following `post-image.sh` script takes the U-Boot `sunxi-spl.bin` as input a
+produces a `sunxi-spl.bin.nand` image with all the error correction, repetition
+of the SPL and padding:
 ```
 cat <<EOF >${BR2_EXTERNAL}/board/nextthingco/CHIP/post-image.sh
 #!/bin/bash
@@ -246,10 +246,12 @@ done
 EOF
 chmod a+x ${BR2_EXTERNAL}/board/nextthingco/CHIP/post-image.sh
 ```
+
 NOTE: instead of padding random data we simply generate BROM image 16 times.
 Each time the output is different, as the `sunxi-nand-image-builder` mixes in
 random data for robustnes on the NAND. So effectively the post image script
 creates a full erase block with the following content:
+
 ```
 | Page |  0  | 16  | 32  | 48  |
 | ---- | --- | --- | --- | --- |
