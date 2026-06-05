@@ -7,6 +7,32 @@ In this chapter we are adding scripts to flash your U-Boot and the Buildroot ima
 automatically and setup everything such that C.H.I.P can boot straight into Linux
 without manual intervention via UART.
 
+## Enable UBIFS generation in Buildroot
+
+First, we enable the generation of an UBIFS rootfs image in our Buildroot config:
+
+```
+UBOOT_NAND_CFG="buildroot-external/board/nextthingco/CHIP/uboot/nand.cfg"
+NAND_BLOCK_SIZE=$(sed -n -e 's/CONFIG_SYS_NAND_BLOCK_SIZE=\(.*\)/\1/p' "${UBOOT_NAND_CFG}")
+NAND_PAGE_SIZE=$(sed -n -e 's/CONFIG_SYS_NAND_PAGE_SIZE=\(.*\)/\1/p' "${UBOOT_NAND_CFG}")
+
+MINIOSIZE="${NAND_PAGE_SIZE}"
+LEB_SIZE="$(printf "0x%x" $((NAND_BLOCK_SIZE/2 - 2*NAND_PAGE_SIZE)))" 
+
+cat <<EOF >>"${BR2_EXTERNAL}"/configs/nextthingco_chip_defconfig
+BR2_TARGET_ROOTFS_UBIFS=y
+BR2_TARGET_ROOTFS_UBIFS_LEBSIZE=${LEB_SIZE}
+BR2_TARGET_ROOTFS_UBIFS_MINIOSIZE=${MINIOSIZE}
+BR2_TARGET_ROOTFS_UBIFS_MAXLEBCNT=4096
+BR2_TARGET_ROOTFS_UBIFS_RT_LZO=y
+BR2_TARGET_ROOTFS_UBIFS_NONE=y
+BR2_TARGET_ROOTFS_UBIFS_OPTS=""
+EOF
+
+cd ${BR_DIR}
+make nextthingco_chip_defconfig
+```
+
 ## Configure U-Boot to automatically boot from NAND
 
 We are adding a `nand_boot.cfg` U-Boot configuration fragment in order to change
@@ -41,6 +67,33 @@ make
 ```
 
 ## Bash script to write U-Boot onto the NAND
+
+We are going to use the U-Boot we have built above not only to boot Linux, but
+also to write the NAND images. For that to work we need to overwrite the auto
+boot command we defined above by downloading a U-boot environment file to address
+`0x43100000` with the `sunxi-fel` tool. The first line in the `uenv.txt` file
+needs to be `#=uEnv`:
+
+```
+ROOTFS_UBIFS_SIZE=0x2370000
+cat <<EOF >uenv.txt
+#=uEnv
+bootdelay=0
+bootcmd=\
+nand erase.chip; \
+nand write.raw.noverify 0x43000000 SPL 0x100; \
+nand write.raw.noverify 0x43000000 SPL.backup 0x100; \
+nand write 0x44000000 U-Boot 0x400000; \
+nand write 0x44000000 U-Boot.backup 0x400000; \
+ubi part rootfs; \
+ubi createvol rootfs; \
+ubi writevol 0x50000000 rootfs ${ROOTFS_UBIFS_SIZE}
+EOF
+```
+
+```
+sunxi-fel -v -p uboot u-boot-sunxi-with-spl.bin write 0x42000000 test.env write 0x43000000 sunxi-spl.bin.nand write 0x44000000 u-boot.bin.nand write 0x50000000 rootfs.ubifs
+```
 
 
 # WIP ---v
