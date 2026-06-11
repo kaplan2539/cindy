@@ -230,18 +230,30 @@ UBOOT_CFG="\${BUILD_DIR}/uboot-${UBOOT_VER}/.config"
 # Read NAND parameters from the U-Boot configuration
 BLOCK_SIZE="\$(sed -n -e 's/CONFIG_SYS_NAND_BLOCK_SIZE=\(.*\)/\1/p' \$UBOOT_CFG)"
 PAGE_SIZE="\$(sed -n -e 's/CONFIG_SYS_NAND_PAGE_SIZE=\(.*\)/\1/p' \$UBOOT_CFG)"
-OOB_SIZE="\$(sed -n -e 's/CONFIG_SYS_NAND_OOBSIZE=\(.*\)/\1/p' \$UBOOT_CFG)"
+
+OOB_SIZE_TOSHIBA=1280
+OOB_SIZE_HYNIX=1664
 
 INPUT_SPL="\${BINARIES_DIR}/sunxi-spl.bin"
 OUTPUT_SPL="\${BINARIES_DIR}/sunxi-spl.bin.ecc"
-OUTPUT_IMAGE="\${BINARIES_DIR}/sunxi-spl.bin.nand"
 
-rm -rf "\${OUTPUT_IMAGE}"
-for i in \$(seq 1 16)
-do
-        \${HOST_DIR}/bin/sunxi-nand-image-builder -s -b -c 64/1024 -u 1024 -e \${BLOCK_SIZE} -p \${PAGE_SIZE} -o \${OOB_SIZE} \${INPUT_SPL} \${OUTPUT_SPL}
-        cat "\${OUTPUT_SPL}" >> "\${OUTPUT_IMAGE}"
-done
+OUTPUT_IMAGE_HYNIX="\${BINARIES_DIR}/sunxi-spl.bin.hynix.nand"
+OUTPUT_IMAGE_TOSHIBA="\${BINARIES_DIR}/sunxi-spl.bin.toshiba.nand"
+
+function create_image()
+{
+    OUTPUT_IMAGE="\${1}"
+    OOB_SIZE="\${2}"
+    rm -rf "\${OUTPUT_IMAGE}"
+    for i in \$(seq 1 16)
+    do
+            \${HOST_DIR}/bin/sunxi-nand-image-builder -s -b -c 64/1024 -u 1024 -e \${BLOCK_SIZE} -p \${PAGE_SIZE} -o \${OOB_SIZE} \${INPUT_SPL} \${OUTPUT_SPL}
+            cat "\${OUTPUT_SPL}" >> "\${OUTPUT_IMAGE}"
+    done
+}
+
+create_image "\${OUTPUT_IMAGE_HYNIX}" "\${OOB_SIZE_HYNIX}"
+create_image "\${OUTPUT_IMAGE_TOSHIBA}" "\${OOB_SIZE_TOSHIBA}"
 
 EOF
 chmod a+x ${BR2_EXTERNAL}/board/nextthingco/CHIP/post-image.sh
@@ -261,8 +273,9 @@ creates a full erase block with the following content:
 | 192  | SPL | SPL | SPL | SPL |
 ```
 
-The resulting `${BR_DIR}/output/images/sunxi-spl.bin.nand` can now be flashed
-to the first two erase blocks of the NAND.
+The resulting `${BR_DIR}/output/images/sunxi-spl.bin.hynix.nand` (or
+`${BR_DIR}/output/images/sunxi-spl.bin.toshiba.nand`) can now be flashed to the
+first two erase blocks of the NAND.
 
 
 ### Full U-Boot image
@@ -298,7 +311,7 @@ D=${BR_DIR}/output/images
 sunxi-fel -v -p uboot ${D}/u-boot-sunxi-with-spl.bin \
                 write 0x42000000 ${D}/zImage \
                 write 0x43000000 ${D}/sun5i-r8-chip.dtb \
-                write 0x43400000 ${D}/sunxi-spl.bin.nand \
+                write 0x43400000 ${D}/sunxi-spl.bin.hynix.nand \
                 write 0x43800000 ${D}/u-boot.bin.nand \
                 write 0x50000000 ${D}/rootfs.cpio.uboot
 ```
