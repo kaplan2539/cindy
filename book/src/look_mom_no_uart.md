@@ -75,8 +75,24 @@ boot command we defined above by downloading a U-boot environment file to addres
 needs to be `#=uEnv`:
 
 ```
-ROOTFS_UBIFS_SIZE=0x2370000
-cat <<EOF >uenv.txt
+cat <<END >${BR_DIR}/output/images/flash.sh
+#!/bin/bash
+
+if [ -z "\${BR_DIR}" ]; then
+    D="\${PWD}"
+else
+    D="\${BR_DIR}/output/images"
+fi
+
+UENV_TXT="\${D}/uenv.txt"
+SUNXI_SPL_BIN_NAND="\${D}/sunxi-spl.bin.nand"
+U_BOOT_BIN_NAND="\${D}/u-boot.bin.nand"
+ROOTFS_UBIFS="\${D}/rootfs.ubifs"
+
+ROOTFS_UBIFS_SIZE=\$(stat -c%s "\${ROOTFS_UBIFS}")
+ROOTFS_UBIFS_SIZE=\$(printf "0x%x" \${ROOTFS_UBIFS_SIZE}) 
+
+cat <<EOF >"\${UENV_TXT}"
 #=uEnv
 bootdelay=0
 bootcmd=\
@@ -87,150 +103,27 @@ nand write 0x44000000 U-Boot 0x400000; \
 nand write 0x44000000 U-Boot.backup 0x400000; \
 ubi part rootfs; \
 ubi createvol rootfs; \
-ubi writevol 0x50000000 rootfs ${ROOTFS_UBIFS_SIZE}
+ubi writevol 0x50000000 rootfs \${ROOTFS_UBIFS_SIZE}; \
+reset
 EOF
+
+echo "# please connect CHIP with FEL-pin pulled low"
+while ! sunxi-fel ver >/dev/null 2>&1; do sleep 0.5; done
+
+sunxi-fel -v -p \
+    uboot u-boot-sunxi-with-spl.bin \
+    write 0x42000000 "\${UENV_TXT}" \
+    write 0x43000000 "\${D}/sunxi-spl.bin.nand" \
+    write 0x44000000 "\${D}/u-boot.bin.nand" \
+    write 0x50000000 "\${D}/rootfs.ubifs"
+
+echo "# flashing..."
+while ! sunxi-fel ver >/dev/null 2>&1; do sleep 0.5; done
+echo "# done!"
+echo 
+echo "# please pull FEL pin high (remove cable connected to GND) and power-cycle CHIP"
+
+END
+chmod a+x ${BR_DIR}/output/images/flash.sh
 ```
-
-```
-sunxi-fel -v -p uboot u-boot-sunxi-with-spl.bin write 0x42000000 test.env write 0x43000000 sunxi-spl.bin.nand write 0x44000000 u-boot.bin.nand write 0x50000000 rootfs.ubifs
-```
-
-
-# WIP ---v
-
-## TODAYS LEARNINGS:
-- it does not work to create a ubi image with buildroot and flash that with the u-boot nand write command
-- what works:
-  - only create rootfs.ubifs with buildroot
-```
-sunxi-fel -v -p uboot u-boot-sunxi-with-spl.bin write 0x43400000 sunxi-spl.bin.nand write 0x43800000 u-boot.bin.nand write 0x50000000 rootfs.ubifs
-
-# in cu terminal / u-boot shell:
-nand erase.part rootfs
-ubi part rootfs
-ubi createvol rootfs
-ubi writevol 0x50000000 rootfs $ROOTFS_SIZE
-```
-
-NOTE: it would be more logical to name our UBI partition "ubi", and keep "rootfs" as the name for the ubi-volume:
-```
-sunxi-fel -v -p uboot u-boot-sunxi-with-spl.bin write 0x43400000 sunxi-spl.bin.nand write 0x43800000 u-boot.bin.nand write 0x50000000 rootfs.ubifs
-
-# in cu terminal / u-boot shell:
-nand erase.part ubi
-ubi part ubi
-ubi createvol rootfs
-ubi writevol 0x50000000 rootfs $ROOTFS_SIZE
-```
-
-
-
-	
-## Add the U-Boot boot script
-
-U-Boot checks for a boot script at address `0x43100000`. If it finds one, it
-processes the commands defined in there and we don't need to type them via UART.
-
-Let's put the commands into the file `${BR2_EXTERNAL_CHIP_PATH}/board/nextthingco/CHIP/uboot/boot.cmd`:
-```
-cat <<EOF >>${BR2_EXTERNAL_CHIP_PATH}/board/nextthingco/CHIP/uboot/boot.cmd
-EOF
-```
-
-Enable the generation of a U-Boot boot script in the Buildroot configuration:
-```
-cat <<EOF >>"${BR2_EXTERNAL}"/configs/nextthingco_chip_defconfig
-BR2_PACKAGE_HOST_UBOOT_TOOLS_BOOT_SCRIPT=y
-BR2_PACKAGE_HOST_UBOOT_TOOLS_BOOT_SCRIPT_SOURCE="\${BR2_EXTERNAL_CHIP_PATH}/board/nextthingco/CHIP/uboot/boot.cmd"
-EOF
-```
-
-Update config and re-build host-uboot-tools to generate `output/images/boot.scr`:
-```
-make nextthingco_chip_defconfig
-make host-uboot-tools-rebuild
-```
-
-Create fel-boot:
-```
-cat <<EOF >${WORKD_DIR}/bin/fel-boot
-#!/bin/bash
-
-D=${BR_DIR}/output/images
-
-sunxi-fel -v -p uboot ${D}/u-boot-sunxi-with-spl.bin \
-                write 0x42000000 ${D}/zImage \
-                write 0x43000000 ${D}/sun5i-r8-chip.dtb \
-                write 0x43100000 ${D}/boot.scr \
-                write 0x43400000 ${D}/sunxi-spl.bin.nand \
-                write 0x43800000 ${D}/u-boot.bin.nand \
-                write 0x50000000 ${D}/rootfs.cpio.uboot
-EOF
-```
-Now, U-Boot auto-boot automatically detects the script uploaded to 0x43100000 and executes it!
-
-Define U-Boot BOOT_COMMAND:
-```
-UBOOT_CFG="${BR2_EXTERNAL}/board/nextthingco/CHIP/uboot/CHIP_defconfig"
-sed -i -e 's/\(CONFIG_SYS_NAND_OOBSIZE\)=.*/\1=0x500/' ${UBOOT_CFG}"\
-
-cd ${BR_DIR}
-make uboot-reconfigure
-
-
-```
-
-TODO:
- 1.) add install.sh to rootfs.tar.gz: 
-```
-mtdinfo
-mtdinfo /dev/mtd0
-flash_erase /dev/mtd4 0 2035
-ubiformat -y /dev/mtd4
-ubiattach -m 4                           # --> generates /dev/ubi0, also displays number of LEBs = e.g. 1952
-ubimkvol /dev/ubi0 --name rootfs -S 1952 # --> creates /dev/ubi0_0
-mkfs.ubifs /dev/ubi0_0                   # --> doesn't really create ubifs
-mount -t ubifs /dev/ubi0_0 /mnt          # --> ubifs is created as part of mounting
-cp -va /bin /boot /crond.reboot /dev /etc /init /lib /lib32 /linuxrc /media /opt /root /sbin /usr /var /mnt # --> copy stuff from ramdisk to nand
-cd /mnt
-mkdir mnt run proc sys tmp
-cd /
-umount /mnt
-poweroff
-```
-
- 2.) modify boot.scr / better create flash.sh:
-```
-nand erase.chip
-nand write.raw.noverify 0x43400000 0x0 0x100
-nand write.raw.noverify 0x43400000 0x400000 0x100
-nand write 0x43800000 0x800000 0x400000
-setenv bootargs init=/install.sh
-bootz 0x42000000 0x50000000 0x43000000
-```
-FINDOUT: does init=install.sh disable password / login?
-
-### direnv
-Create .envrc:
-```
-cat <<EOF >.envrc 
-# set U-Boot version
-export UBOOT_VER=2022.01
-
-# Retrieve latest Linux version
-export LINUX_VER=6.12.70
-
-# set Buildroot version
-export BR_VER=2025.02.10
-
-# define working dir - use absolute paths!
-export WORK_DIR="\${PWD}"
-export DOWNLOAD_DIR="\${WORK_DIR}/download"
-export BR_DIR="\${WORK_DIR}/buildroot-${BR_VER}"
-export BR2_EXTERNA="\${WORK_DIR}/buildroot-external"
-
-export PATH=\$PATH:${PWD}/bin
-EOF
-```
-
 
