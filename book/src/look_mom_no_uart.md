@@ -84,8 +84,10 @@ else
     D="\${BR_DIR}/output/images"
 fi
 
+U_BOOT_SUNXI_WITH_SPL="\${D}/u-boot-sunxi-with-spl.bin"
 UENV_TXT="\${D}/uenv.txt"
-SUNXI_SPL_BIN_NAND="\${D}/sunxi-spl.bin.nand"
+SUNXI_SPL_BIN_HYNIX_NAND="\${D}/sunxi-spl.bin.hynix.nand"
+SUNXI_SPL_BIN_TOSHIBA_NAND="\${D}/sunxi-spl.bin.toshiba.nand"
 U_BOOT_BIN_NAND="\${D}/u-boot.bin.nand"
 ROOTFS_UBIFS="\${D}/rootfs.ubifs"
 
@@ -97,10 +99,18 @@ cat <<EOF >"\${UENV_TXT}"
 bootdelay=0
 bootcmd=\
 nand erase.chip; \
-nand write.raw.noverify 0x43000000 SPL 0x100; \
-nand write.raw.noverify 0x43000000 SPL.backup 0x100; \
-nand write 0x44000000 U-Boot 0x400000; \
-nand write 0x44000000 U-Boot.backup 0x400000; \
+if itest.b *0x1c03035 == 40; then \
+  echo "Toshiba NAND Detected"; \
+  env set spl_img 0x44000000; \
+fi; \
+if itest.b *0x1c03035 == 60; then \
+  echo "Hynix NAND Detected"; \
+  env set spl_img 0x43000000; \
+fi; \
+nand write.raw.noverify \\\${spl_img} SPL 0x100; \
+nand write.raw.noverify \\\${spl_img} SPL.backup 0x100; \
+nand write 0x45000000 U-Boot 0x400000; \
+nand write 0x45000000 U-Boot.backup 0x400000; \
 ubi part rootfs; \
 ubi createvol rootfs; \
 ubi writevol 0x50000000 rootfs \${ROOTFS_UBIFS_SIZE}; \
@@ -111,11 +121,12 @@ echo "# please connect CHIP with FEL-pin pulled low"
 while ! sunxi-fel ver >/dev/null 2>&1; do sleep 0.5; done
 
 sunxi-fel -v -p \
-    uboot u-boot-sunxi-with-spl.bin \
+    uboot "\${U_BOOT_SUNXI_WITH_SPL}" \
     write 0x42000000 "\${UENV_TXT}" \
-    write 0x43000000 "\${D}/sunxi-spl.bin.nand" \
-    write 0x44000000 "\${D}/u-boot.bin.nand" \
-    write 0x50000000 "\${D}/rootfs.ubifs"
+    write 0x43000000 "\${SUNXI_SPL_BIN_HYNIX_NAND}" \
+    write 0x44000000 "\${SUNXI_SPL_BIN_TOSHIBA_NAND}" \
+    write 0x45000000 "\${U_BOOT_BIN_NAND}" \
+    write 0x50000000 "\${ROOTFS_UBIFS}"
 
 echo "# flashing..."
 while ! sunxi-fel ver >/dev/null 2>&1; do sleep 0.5; done
@@ -127,3 +138,8 @@ END
 chmod a+x ${BR_DIR}/output/images/flash.sh
 ```
 
+Note: in the U-Boot `bootcmd` defined above we do a trick to find out the NAND
+type. We first erase the NAND. After doing that we can read from memory address
+`0x1c03035` which returns 40 for the Toshiba and 60 for the Hynix NAND.
+It does not work without erasing the NAND first.
+(Learned this from Chris Morgan's flashing scripts).
