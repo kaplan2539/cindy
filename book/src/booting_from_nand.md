@@ -255,6 +255,9 @@ function create_image()
 create_image "\${OUTPUT_IMAGE_HYNIX}" "\${OOB_SIZE_HYNIX}"
 create_image "\${OUTPUT_IMAGE_TOSHIBA}" "\${OOB_SIZE_TOSHIBA}"
 
+INPUT_IMAGE="${BINARIES_DIR}/u-boot.bin"
+OUTPUT_IMAGE="${BINARIES_DIR}/u-boot.bin.nand"
+dd if="${INPUT_IMAGE}" of="${OUTPUT_IMAGE}" bs=$(printf "%d" ${BLOCK_SIZE}) conv=sync
 EOF
 chmod a+x ${BR2_EXTERNAL}/board/nextthingco/CHIP/post-image.sh
 ```
