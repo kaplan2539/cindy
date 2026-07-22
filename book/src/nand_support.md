@@ -97,7 +97,7 @@ Let us add some file system utilities to our target rootfs and also let Buildroo
 cat <<EOF >>"${BR2_EXTERNAL}"/configs/nextthingco_chip_defconfig
 BR2_PACKAGE_MTD=y
 BR2_PACKAGE_MTD_MKFSUBIFS=y
-BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES="\${BR2_EXTERNAL}/board/nextthingco/CHIP/linux/nand.cfg"
+BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES="$(sort $(wildcard $(BR2_EXTERNAL)/board/nextthingco/CHIP/linux/*.cfg))"
 EOF
 ```
 
@@ -171,7 +171,7 @@ s/\(BR2_TARGET_UBOOT_CUSTOM_VERSION_VALUE=\).*/\1\"'$UBOOT_VER'\"/;
 ' ${BR2_EXTERNAL}/configs/nextthingco_chip_defconfig
 
 cat <<EOF >>${BR2_EXTERNAL}/configs/nextthingco_chip_defconfig
-BR2_TARGET_UBOOT_CONFIG_FRAGMENT_FILES="\${BR2_EXTERNAL}/board/nextthingco/CHIP/uboot/nand.cfg"
+BR2_TARGET_UBOOT_CONFIG_FRAGMENT_FILES="$(sort $(wildcard $(BR2_EXTERNAL)/board/nextthingco/CHIP/uboot/*.cfg))"
 EOF
  
 cd ${BR_DIR}
