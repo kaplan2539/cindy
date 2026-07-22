@@ -94,7 +94,6 @@ CONFIG_FB_DEVICE=y
 CONFIG_PINCTRL_AXP209=y
 EOF
 ```
-TODO: enable .../lcd.cfg in "${BR2_EXTERNAL}"/configs/nextthingco_chip_defconfig
 
 ### Keyboard
 
@@ -184,10 +183,11 @@ cat <<EOF |sed -e 's/^         / \t/; s/        /\t/g; s/+ $/+/g' >${BR2_EXTERNA
 +	};
  };
  
- &i2c2 {EOF
+ &i2c2 {
+EOF
 ```
 
-Create a Buildroot overlay to start getty on tty0:
+Create a Buildroot rootfs overlay to start getty on tty0:
 ```
 mkdir -p "${BR2_EXTERNAL}"/overlay/etc
 cat <<EOF >"${BR2_EXTERNAL}"/overlay/etc/inittab
@@ -235,6 +235,16 @@ tty1::respawn:/sbin/getty -L  tty1 0 linux
 EOF
 ```
 
+Enable the rootfs overlay dir in Buildroot:
+```
+cat <<EOF >>${BR2_EXTERNAL}/configs/nextthingco_chip_defconfig
+BR2_ROOTFS_OVERLAY="${BR2_EXTERNAL}/overlay"
+EOF
+ 
+cd ${BR_DIR}
+make nextthingco_chip_defconfig
+```
+
 ## U-BOOT
 
 ```
@@ -246,5 +256,3 @@ CONFIG_VIDEO_LCD_BL_PWM="PB2"
 # CONFIG_VIDEO_LCD_BL_PWM_ACTIVE_LOW is not set
 EOF
 ```
-
-TODO: enable .../lcd.cfg in "${BR2_EXTERNAL}"/configs/nextthingco_chip_defconfig
