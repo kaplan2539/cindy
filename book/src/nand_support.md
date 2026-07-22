@@ -39,7 +39,7 @@ EOF
 The device tree for CHIP included in the Linux source does not enable the NAND.
 We need to create a patch that we place in `buildroot-external/board/nextthingco/CHIP/sun5i-r8-chip.dts.nand.patch`:
 ```
-cat <<EOF |sed -e 's/^         / \t/; s/        /\t/g; s/+ $/+/g' >${BR2_EXTERNAL}/board/nextthingco/CHIP/linux/sun5i-r8-chip.dts.nand.patch
+cat <<EOF |sed -e 's/^         / \t/; s/        /\t/g; s/+ $/+/g' >${BR2_EXTERNAL}/board/nextthingco/CHIP/linux/00-sun5i-r8-chip.dts.nand.patch
 --- a/arch/arm/boot/dts/allwinner/sun5i-r8-chip.dts        2026-02-11 22:47:01.214772251 +0100
 +++ b/arch/arm/boot/dts/allwinner/sun5i-r8-chip.dts        2026-02-11 22:48:26.003942388 +0100
 @@ -280,3 +280,44 @@
