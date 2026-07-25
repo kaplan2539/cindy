@@ -187,9 +187,21 @@ cat <<EOF |sed -e 's/^         / \t/; s/        /\t/g; s/+ $/+/g' >${BR2_EXTERNA
 EOF
 ```
 
-Create a Buildroot rootfs overlay to start getty on tty0:
+### Enable the FN-key layer
+
+In our DTS patch above the FN-key is in row 4, column 1 and emits
+`KEY_RIGHTALT` events. In order to enable the FN-key layer we need to add the
+`kbd` package to our Buildroot configuration:
+```
+cat <<EOF >>${BR2_EXTERNAL}/configs/nextthingco_chip_defconfig
+BR2_PACKAGE_KBD=y
+EOF
+```
+
+Create a Buildroot rootfs overlay to run `loadkeys` and start `getty` on tty0:
 ```
 mkdir -p "${BR2_EXTERNAL}"/overlay/etc
+
 cat <<EOF >"${BR2_EXTERNAL}"/overlay/etc/inittab
 # /etc/inittab
 #
@@ -213,6 +225,7 @@ cat <<EOF >"${BR2_EXTERNAL}"/overlay/etc/inittab
 ::sysinit:/bin/mount -a
 ::sysinit:/bin/mkdir -p /run/lock/subsys
 ::sysinit:/sbin/swapon -a
+::sysinit:/usr/bin/loadkeys /etc/pocketchip.keymap
 null::sysinit:/bin/ln -sf /proc/self/fd /dev/fd
 null::sysinit:/bin/ln -sf /proc/self/fd/0 /dev/stdin
 null::sysinit:/bin/ln -sf /proc/self/fd/1 /dev/stdout
@@ -234,6 +247,27 @@ tty1::respawn:/sbin/getty -L  tty1 0 linux
 ::shutdown:/bin/umount -a -r
 EOF
 ```
+
+Create `/etc/pocketchip.keymap`:
+```
+cat <<EOF >"${BR2_EXTERNAL}"/overlay/etc/pocketchip.keymap
+keycode 21 = y Y braceleft
+keycode 22 = u U braceright
+keycode 23 = i I bracketleft
+keycode 24 = o O bracketright
+keycode 25 = p P bar
+keycode 35 = h H less 
+keycode 36 = j J greater
+keycode 37 = k K apostrophe
+keycode 38 = l L quotedbl
+keycode 48 = b B 
+keycode 49 = n N tilde
+keycode 50 = m M colon
+keycode 52 = period comma semicolon
+keycode 53 = slash question backslash
+EOF
+```
+
 
 Enable the rootfs overlay dir in Buildroot:
 ```
