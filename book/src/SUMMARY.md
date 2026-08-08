@@ -8,3 +8,6 @@
 - [NAND Support](./nand_support.md)
 - [Booting from NAND](./booting_from_nand.md)
 - [Look Mom no UART](./look_mom_no_uart.md)
+- [Enabling WiFi](./wifi.md)
+- [PocketCHIP](./pocketchip.md)
+

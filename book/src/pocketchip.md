@@ -1,12 +1,54 @@
 # PocketCHIP
 
+## Enable the LCD screen in U-BOOT
+
+Unfortunately, there is no built-in support for PocketCHIP's keyboard - 
+but the following is a configuration fragment to enable the LCD in U-Boot:
+```
+cat <<EOF >"${BR2_EXTERNAL}"/board/nextthingco/CHIP/u-boot/lcd.cfg
+# CONFIG_VIDEO_HDMI is not set
+CONFIG_VIDEO_LCD_MODE="x:480,y:272,depth:18,pclk_khz:9000,le:10,ri:5,up:3,lo:8,hs:30,vs:5,sync:3,vmode:0"
+CONFIG_VIDEO_LCD_BL_EN="PD18"
+CONFIG_VIDEO_LCD_BL_PWM="PB2"
+# CONFIG_VIDEO_LCD_BL_PWM_ACTIVE_LOW is not set
+EOF
+```
+
 ## Linux
+
+### GPU
+First, enable CHIP's built-in Mali400 GPU with this Linux configuration fragement:
+```
+cat <<EOF >"${BR2_EXTERNAL}"/board/nextthingco/CHIP/linux/lima.cfg
+CONFIG_DRM=y
+CONFIG_DRM_SUN4I=y
+CONFIG_DRM_SUN4I_BACKEND=y
+CONFIG_DRM_LIMA=y
+EOF
+```
+
+And enable the GPU in the device tree with this patch:
+```
+cat <<EOF |sed -e 's/^         / \t/; s/        /\t/g; s/+ $/+/g' >${BR2_EXTERNAL}/board/nextthingco/CHIP/linux/01-sun5i-r8-chip.dts.mali.patch
+--- a/arch/arm/boot/dts/allwinner/sun5i-r8-chip.dts	2026-08-09 00:22:19.925880830 +0200
++++ b/arch/arm/boot/dts/allwinner/sun5i-r8-chip.dts	2026-08-09 00:23:12.691980278 +0200
+@@ -321,3 +321,7 @@
+ 		};
+ 	};
+ };
++
++&mali {
++	status = "okay";
++};
+EOF
+```
+
 
 ### LCD
 
 Create a patch for CHIP's dts to enable the PocketCHIP lcd:
 ```
-cat <<EOF |sed -e 's/^         / \t/; s/        /\t/g; s/+ $/+/g' >${BR2_EXTERNAL}/board/nextthingco/CHIP/linux/01-sun5i-r8-chip.dts.lcd.patch
+cat <<EOF |sed -e 's/^         / \t/; s/        /\t/g; s/+ $/+/g' >${BR2_EXTERNAL}/board/nextthingco/CHIP/linux/02-sun5i-r8-chip.dts.lcd.patch
 --- a/arch/arm/boot/dts/allwinner/sun5i-r8-chip.dts	2026-07-12 01:17:12.549754373 +0200
 +++ b/arch/arm/boot/dts/allwinner/sun5i-r8-chip.dts	2026-07-12 00:02:08.862363121 +0200
 @@ -82,13 +82,42 @@
@@ -99,7 +141,7 @@ EOF
 
 dts patch to enable the keyboard:
 ```
-cat <<EOF |sed -e 's/^         / \t/; s/        /\t/g; s/+ $/+/g' >${BR2_EXTERNAL}/board/nextthingco/CHIP/linux/02-sun5i-r8-chip.dts.keyboard.patch
+cat <<EOF |sed -e 's/^         / \t/; s/        /\t/g; s/+ $/+/g' >${BR2_EXTERNAL}/board/nextthingco/CHIP/linux/03-sun5i-r8-chip.dts.keyboard.patch
 --- a/arch/arm/boot/dts/allwinner/sun5i-r8-chip.dts	2026-07-22 23:32:47.354576484 +0200
 +++ b/arch/arm/boot/dts/allwinner/sun5i-r8-chip.dts	2026-07-22 22:51:19.533940030 +0200
 @@ -49,6 +49,7 @@
@@ -268,7 +310,6 @@ keycode 53 = slash question backslash
 EOF
 ```
 
-
 Enable the rootfs overlay dir in Buildroot:
 ```
 cat <<EOF >>${BR2_EXTERNAL}/configs/nextthingco_chip_defconfig
@@ -279,14 +320,32 @@ cd ${BR_DIR}
 make nextthingco_chip_defconfig
 ```
 
-## U-BOOT
+### Enable the touch screen
 
+Linux configuration fragment to enable the touch screen:
 ```
-cat <<EOF >"${BR2_EXTERNAL}"/board/nextthingco/CHIP/u-boot/lcd.cfg
-# CONFIG_VIDEO_HDMI is not set
-CONFIG_VIDEO_LCD_MODE="x:480,y:272,depth:18,pclk_khz:9000,le:10,ri:5,up:3,lo:8,hs:30,vs:5,sync:3,vmode:0"
-CONFIG_VIDEO_LCD_BL_EN="PD18"
-CONFIG_VIDEO_LCD_BL_PWM="PB2"
-# CONFIG_VIDEO_LCD_BL_PWM_ACTIVE_LOW is not set
+cat <<EOF >"${BR2_EXTERNAL}"/board/nextthingco/CHIP/linux/touchscreen.cfg
+CONFIG_TOUCHSCREEN_SUN4I=y
+CONFIG_INPUT_EVDEV=y
+EOF
+```
+
+Patch for DTS to enable the touch screen:
+```
+cat <<EOF |sed -e 's/^         / \t/; s/        /\t/g; s/+ $/+/g' >${BR2_EXTERNAL}/board/nextthingco/CHIP/linux/04-sun5i-r8-chip.dts.touchscreen.patch
+--- a/arch/arm/boot/dts/allwinner/sun5i-r8-chip.dts	2026-08-08 23:32:47.354576484 +0200
++++ b/arch/arm/boot/dts/allwinner/sun5i-r8-chip.dts	2026-08-08 22:51:19.533940030 +0200
+--- sun5i-r8-chip-p03.dts	2026-08-09 00:55:45.188680420 +0200
++++ sun5i-r8-chip.dts	2026-08-09 00:56:11.745472130 +0200
+@@ -437,3 +437,9 @@
+ &mali {
+ 	status = "okay";
+ };
++
++&rtp {
++       compatible = "allwinner,sun5i-a13-ts";
++       allwinner,ts-attached;  /* <- required, or it only registers as a thermal sensor */
++       status = "okay";
++};
 EOF
 ```

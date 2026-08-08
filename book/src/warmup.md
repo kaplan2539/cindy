@@ -1,4 +1,7 @@
-# Warm up: Boot the latest Linux LTS 
+# Warm up: Boot the latest Linux LTS
+###### the following line makes this file an executable bash script - as explained [elsewhere](https://gist.githubusercontent.com/bwoods/1c25cb7723a06a076c2152a2781d4d49/raw/263d7c4bd3b344bd70595e57dde01e5a429f2817/Markdown%2520Shell%2520Scripting.md): 
+
+    alias ~~~=":<<~~~sh'";:<<'~~~sh'
 
 In this warm-up exercise we are going to show that C.H.I.P is not dead: We are
 booting into the latest Linux LTS release (6.12.66 at the time of writing).
