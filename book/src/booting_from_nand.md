@@ -223,8 +223,8 @@ echo "# BASE_DIR=\$BASE_DIR"
 ROOT_DIR="\${BR2_EXTERNAL_CHIP_PATH}"
 
 # Read U-Boot version and config file from the Buildroot configuration
-UBOOT_VER="\$(sed -n -e 's/BR2_TARGET_UBOOT_VERSION="\([^"]*\)"/\1/p' \$BR2_CONFIG)"
-UBOOT_CFG="\${BUILD_DIR}/uboot-${UBOOT_VER}/.config"
+UBOOT_VER="\$(sed -n -e 's/BR2_TARGET_UBOOT_VERSION="\([^"]*\)"/\1/p' \${BR2_CONFIG})"
+UBOOT_CFG="\${BUILD_DIR}/uboot-\${UBOOT_VER}/.config"
 [ ! -f "\${UBOOT_CFG}" ] && echo "ERROR: cannot find U-Boot config $UBOOT_CFG" && exit 1
 
 # Read NAND parameters from the U-Boot configuration
@@ -254,10 +254,6 @@ function create_image()
 
 create_image "\${OUTPUT_IMAGE_HYNIX}" "\${OOB_SIZE_HYNIX}"
 create_image "\${OUTPUT_IMAGE_TOSHIBA}" "\${OOB_SIZE_TOSHIBA}"
-
-INPUT_IMAGE="${BINARIES_DIR}/u-boot.bin"
-OUTPUT_IMAGE="${BINARIES_DIR}/u-boot.bin.nand"
-dd if="${INPUT_IMAGE}" of="${OUTPUT_IMAGE}" bs=$(printf "%d" ${BLOCK_SIZE}) conv=sync
 EOF
 chmod a+x ${BR2_EXTERNAL}/board/nextthingco/CHIP/post-image.sh
 ```
